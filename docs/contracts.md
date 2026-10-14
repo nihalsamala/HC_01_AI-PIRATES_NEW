@@ -102,7 +102,7 @@ Because both return the same shape, the frontend renders either mode with no spe
 - Crash tasks bypass the budget and appear in `emergency`.
 - A task not completed within `escalation_after_minutes` gets `escalated = True` and a priority boost.
 - Task identity: a task is identified by `(patient_id, type)`. While the condition persists, keep the same task id and `created_at` (that is what makes aging work). When the condition clears, drop the task.
-- Naive mode (`news2.py`): every patient at or above `news2_alert_threshold` becomes a `news2_alert` in `active`, no budget (`budget_k = None`). It uses the standard SpO2 scale 1 for everyone unless `news2_spo2_scale2_for_copd` is set.
+- Naive mode (`news2.py`): every patient at or above `news2_alert_threshold` (or with any single parameter scoring 3) becomes a `news2_alert` in `active`, no budget (`budget_k = None`). It uses the standard SpO2 scale 1 for everyone unless `news2_spo2_scale2_for_copd` is set.
 
 ## 6. Simulator contract (`backend/simulator/`)
 
