@@ -1,0 +1,42 @@
+# Secrets and local settings
+.env
+.env.*
+!.env.example
+
+# Python
+venv/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node / frontend
+node_modules/
+dist/
+build/
+.vite/
+coverage/
+
+# Local database and generated data
+*.db
+*.sqlite
+*.sqlite3
+data/raw/*
+!data/raw/.gitkeep
+
+# Trained-model scratch (commit only the final small model on purpose)
+backend/ml/checkpoints/
+*.ckpt
+
+# Logs and temp files
+*.log
+tmp/
+*.tmp
+
+# Editor and OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
