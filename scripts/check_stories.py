@@ -210,9 +210,83 @@ def run_checks(base_url: str) -> None:
 
     print(f"  [PASS] Story 3 Verified: Bed 12 in emergency; active holds 2 cards; naive mode shows {naive_alerts} alerts vs WardPulse {wp_alerts}.")
 
-    print("\n=======================================================")
-    print("ALL 3 CLINICAL STORIES & TOGGLE REDUCTION VERIFIED OK!")
-    print("=======================================================\n")
+    # -------------------------------------------------------------------------
+    # STORY 4: Live Typed-In COPD Deterioration (Bed 5 vs Control Bed 6)
+    # -------------------------------------------------------------------------
+    print("\n--- Verifying Story 4: Live Typed-In COPD Deterioration (Bed 5 vs Bed 6) ---")
+    # Reset simulation to clean baseline before Story 4
+    res_reset = client.post("/sim/control", json={"action": "reset"})
+    assert res_reset.status_code == 200
+
+    # Retrieve patient IDs for Bed 5 (COPD) and Bed 6 (non-COPD control)
+    res_ward = client.get("/ward")
+    assert res_ward.status_code == 200
+    ward_beds = res_ward.json()["beds"]
+    bed5_patient_id = next(b["patient_id"] for b in ward_beds if b["bed"] == 5)
+    bed6_patient_id = next(b["patient_id"] for b in ward_beds if b["bed"] == 6)
+
+    # 1. POST vitals for Bed 5 (COPD): SpO2 falling to 88% while RR stays at normal 22
+    vitals_bed5 = {
+        "patient_id": bed5_patient_id,
+        "hr": 80.0,
+        "sbp": 124.0,
+        "dbp": 78.0,
+        "rr": 22.0,
+        "spo2": 88.0,
+        "on_oxygen": True,
+        "source": "manual",
+    }
+    res_post_5 = client.post("/vitals", json=vitals_bed5)
+    assert res_post_5.status_code == 200, f"Failed to post vitals for Bed 5: {res_post_5.json()}"
+
+    res_tasks_5 = client.get("/tasks?mode=wardpulse")
+    assert res_tasks_5.status_code == 200
+    tasks_5 = res_tasks_5.json()
+    b5_active = [t for t in tasks_5["active"] if t["bed"] == 5]
+    print(f"  Bed 5 active cards: {[(t['type'], t['reason']) for t in b5_active]}")
+
+    has_b5_copd_reason = any("Critical hypoxia for COPD" in t["reason"] or "COPD" in t["reason"] for t in b5_active)
+    if not has_b5_copd_reason:
+        print("[FAIL] Story 4: Bed 5 did not receive an active card with COPD focus reason!")
+        sys.exit(1)
+
+    # 2. Reset and POST the exact same vitals for Bed 6 (Control, non-COPD)
+    res_reset = client.post("/sim/control", json={"action": "reset"})
+    assert res_reset.status_code == 200
+
+    vitals_bed6 = {
+        "patient_id": bed6_patient_id,
+        "hr": 80.0,
+        "sbp": 124.0,
+        "dbp": 78.0,
+        "rr": 22.0,
+        "spo2": 88.0,
+        "on_oxygen": True,
+        "source": "manual",
+    }
+    res_post_6 = client.post("/vitals", json=vitals_bed6)
+    assert res_post_6.status_code == 200
+
+    res_tasks_6 = client.get("/tasks?mode=wardpulse")
+    assert res_tasks_6.status_code == 200
+    tasks_6 = res_tasks_6.json()
+    b6_active = [t for t in tasks_6["active"] if t["bed"] == 6]
+    print(f"  Bed 6 active cards: {[(t['type'], t['reason']) for t in b6_active]}")
+
+    has_b6_copd_reason = any("COPD" in t["reason"] for t in b6_active)
+    if has_b6_copd_reason:
+        print("[FAIL] Story 4: Bed 6 erroneously received a COPD-boosted reason!")
+        sys.exit(1)
+
+    print("  [PASS] Story 4 Verified: Bed 5 gets active card with COPD focus reason; non-COPD control Bed 6 does not.")
+
+    # Reset simulation back to clean baseline so other test suites or runs are unaffected
+    res_final_reset = client.post("/sim/control", json={"action": "reset"})
+    assert res_final_reset.status_code == 200
+
+    print("\n===================================================================")
+    print("ALL 4 CLINICAL STORIES & TOGGLE REDUCTION VERIFIED OK!")
+    print("===================================================================\n")
 
 
 if __name__ == "__main__":

@@ -162,3 +162,44 @@ def build_10_abnormal_patients_fixtures(now: datetime) -> Tuple[List[Patient], D
         vitals[i] = readings
 
     return patients, vitals
+
+
+def build_story4_fixtures(now: datetime) -> Tuple[List[Patient], Dict[int, List[VitalsReading]]]:
+    """Story 4 (Typed-in): Bed 5 (COPD, SpO2 falling to 88% while RR normal) vs Bed 6 (non-COPD control)."""
+    p5 = Patient(
+        id=5,
+        bed=5,
+        age=74,
+        conditions=[Condition.COPD],
+        admitted_at=now - timedelta(days=2),
+        display_name="Bed 5",
+    )
+    p6 = Patient(
+        id=6,
+        bed=6,
+        age=39,
+        conditions=[],
+        admitted_at=now - timedelta(days=1),
+        display_name="Bed 6",
+    )
+
+    # Bed 5 (COPD): chronic stable RR 22, SpO2 91%
+    vitals_bed5 = [
+        VitalsReading(id=501, patient_id=5, timestamp=now - timedelta(hours=18), source=Source.MANUAL, hr=80.0, sbp=124.0, dbp=78.0, rr=22.0, spo2=91.0, temp=36.7),
+        VitalsReading(id=502, patient_id=5, timestamp=now - timedelta(hours=12), source=Source.MANUAL, hr=79.0, sbp=125.0, dbp=78.0, rr=21.0, spo2=92.0, temp=36.7),
+        VitalsReading(id=503, patient_id=5, timestamp=now - timedelta(hours=6), source=Source.MANUAL, hr=81.0, sbp=123.0, dbp=77.0, rr=22.0, spo2=91.0, temp=36.8),
+        # New reading: SpO2 drops to 88% while RR remains at baseline 22
+        VitalsReading(id=504, patient_id=5, timestamp=now, source=Source.MANUAL, hr=80.0, sbp=124.0, dbp=78.0, rr=22.0, spo2=88.0, temp=36.7, on_oxygen=True),
+    ]
+
+    # Bed 6 (Control, general): baseline RR 14, SpO2 99%
+    vitals_bed6 = [
+        VitalsReading(id=601, patient_id=6, timestamp=now - timedelta(hours=18), source=Source.MANUAL, hr=68.0, sbp=118.0, dbp=74.0, rr=14.0, spo2=99.0, temp=36.5),
+        VitalsReading(id=602, patient_id=6, timestamp=now - timedelta(hours=12), source=Source.MANUAL, hr=69.0, sbp=117.0, dbp=73.0, rr=14.0, spo2=98.0, temp=36.6),
+        VitalsReading(id=603, patient_id=6, timestamp=now - timedelta(hours=6), source=Source.MANUAL, hr=67.0, sbp=119.0, dbp=75.0, rr=15.0, spo2=99.0, temp=36.5),
+        # Same new reading numbers applied to Bed 6
+        VitalsReading(id=604, patient_id=6, timestamp=now, source=Source.MANUAL, hr=80.0, sbp=124.0, dbp=78.0, rr=22.0, spo2=88.0, temp=36.7, on_oxygen=True),
+    ]
+
+    return [p5, p6], {5: vitals_bed5, 6: vitals_bed6}
+
