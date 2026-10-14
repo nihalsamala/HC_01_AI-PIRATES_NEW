@@ -84,3 +84,32 @@ To prevent mathematical division by zero when calculating deviation $z$-scores o
 - Respiratory Rate: $1.5\text{ bpm}$
 - $\text{SpO}_2$: $1.0\%$
 - Temperature: $0.2^\circ\text{C}$
+
+---
+
+## 6. Condition Profiles & Pattern Rules
+
+> **Clinical Status: Placeholder, needs clinical review.**
+> All condition profile weights, vital sign focus mappings, and pattern definitions documented below are initial prototypes designed for decision support demonstration. They MUST undergo formal clinical and nursing review before any operational ward deployment.
+
+### Clinical Weighting Principles:
+1. **Weights ONLY Boost, Never Mute:**
+   Condition-specific profile weights are strictly asymmetrical: they **only boost sensitivity** to deteriorating patterns in organs vulnerable to the patient's condition; they **never mute, suppress, or discount** signs of physiological decompensation.
+2. **Red Lines Remain Inviolable:**
+   Hard clinical safety red lines (Section 2) and unequivocal crash criteria (Section 3) are completely unalterable and apply universally regardless of patient condition tags or profile weights. A red-line breach always overrides all baseline adjustments and forces high risk.
+3. **Condition Profiles and Focus Vitals:**
+   - **COPD Profile:** Focus vitals: $\text{SpO}_2$ and $\text{RR}$. Chronic compensatory tachypnea (e.g. RR 21–23) with stable saturations does not trigger alarms, but hypoxic deviation below personal baseline or breaching $\text{SpO}_2 \le 88\%$ immediately triggers acute escalation (`Critical hypoxia for COPD`).
+   - **Post-Op Profile:** Focus vitals: $\text{RR}$ and $\text{HR}$. Elevated vigilance for respiratory depression (opioid-induced hypoventilation) and sympathetic tachycardia (early bleeding or septic drift).
+   - **Cardiac Profile:** Focus vitals: $\text{HR}$ and $\text{SBP}$. Heightened vigilance for arrhythmic rate spikes, decompensated hypertension, or cardiogenic pressure drop.
+
+---
+
+## 7. Data Provenance & Public Dataset Limitations
+
+Public clinical benchmark records (e.g. PhysioNet Computing in Cardiology 2019 / MIMIC) contain de-identified physiological time series but **do not include chronic condition ICD tags** (such as confirmed COPD, post-operative status, or specific cardiac histories). 
+
+Consequently:
+- Condition profiles and condition-based focus vitals are **completely inactive during evaluation replay on public datasets** (falling back to the general population baseline).
+- Condition-specific behavior, personal baseline discrimination (Story 1), and typed-in targeted deterioration (Story 4) are **demonstrated and evaluated on the simulator only**.
+- Benchmark headline numbers on the public dataset remain 100% stable and unperturbed by condition-specific profile additions.
+

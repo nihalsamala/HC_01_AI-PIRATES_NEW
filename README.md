@@ -174,14 +174,14 @@ npm run dev
 ## 6. Running Tests & Story Verification
 
 ### Backend Pytest Suite
-Run the full 57-test suite spanning the engine, simulator, API, evaluation, and ML:
+Run the full 64-test suite spanning the engine, simulator, API, evaluation, ML, and story tests:
 ```powershell
 cd backend
 .\.venv\Scripts\pytest.exe -v
 ```
 
 ### Automated Story Verification
-With the backend server running, execute the automated story test script to verify all 3 clinical scenarios and toggle reduction:
+With the backend server running, execute the automated story test script to verify all 4 clinical scenarios and toggle reduction:
 ```powershell
 .\backend\.venv\Scripts\python.exe scripts/check_stories.py
 ```
@@ -193,11 +193,14 @@ cd backend
 .\.venv\Scripts\python.exe -m evaluation.run_eval
 ```
 
+> **Public Dataset Data Provenance Note:**
+> Real public clinical datasets (such as PhysioNet CinC 2019 / MIMIC) contain de-identified raw vitals series but **do not contain chronic condition tags** (e.g. COPD, post-operative markers). As a result, condition profiles are **inert during public data replay** and condition-specific baseline behavior is demonstrated and evaluated on the ward simulator only.
+
 ---
 
-## 7. The Three Clinical Scenarios
+## 7. The Four Clinical Scenarios
 
-WardPulse is demonstrated across three clinically validated scenarios:
+WardPulse is demonstrated across four clinically validated scenarios:
 
 1. **Story 1 (07:00) — Same Breathing Rate, Different Patients:**
    Bed 3 (chronic COPD) and Bed 7 (post-op) both have a respiratory rate of 22 breaths/min. Standard NEWS2 sounds alarms on both. WardPulse identifies that Bed 3 is at his established personal baseline and remains quiet, focusing the nurse exclusively on Bed 7's acute post-op tachypnea.
@@ -205,6 +208,8 @@ WardPulse is demonstrated across three clinically validated scenarios:
    Bed 4's blood pressure is 7 hours old. Rather than alarming on outdated numbers, WardPulse generates a proactive `"Repeat manual BP"` task to verify the vitals before doctor escalation.
 3. **Story 3 (11:00) — Unequivocal Crash Bypasses the Budget:**
    Bed 12 enters septic shock (SBP 78, HR 135, SpO2 86%). Hard red-lines bypass the 2-action budget immediately, sounding an unmistakable top-level **Emergency Banner** without hiding other tasks.
+4. **Story 4 (Live Typed-In) — COPD Hypoxic Drop vs. Chronic Baseline:**
+   Bed 5 (chronic COPD, baseline RR 22, SpO2 91%) has vitals typed in: SpO2 falls to 88% while RR stays at normal 22. WardPulse immediately boosts oxygen failure (`Critical hypoxia for COPD: SpO2 88.0%`) while recognizing normal respiratory drive; in contrast, a non-COPD control patient given the same numbers does not receive the COPD-specific red line boost.
 
 ---
 

@@ -86,6 +86,31 @@ You can run this manually using the clock controls, or click the **"Guided Demo"
 
 ---
 
+### Step 5: Story 4 — Live Typed-in COPD Deterioration (Live Demo)
+*(Typed in live during presentation, not hard-coded in the timeline)*
+
+- **Chosen Bed:** **Bed 5** (Age 74, documented chronic COPD; distinct from scripted demo beds 3, 4, 7, and 12, with completely stable baseline history: normal RR 22, baseline SpO2 91%).
+- **Exact Vitals to Type:**
+  - Click **"Enter vitals"** (or Quick Vitals on Bed 5).
+  - Select **Bed 5**.
+  - Enter:
+    - **Heart Rate:** `80`
+    - **Blood Pressure:** `124 / 78`
+    - **Breathing Rate (RR):** `22` *(stays exactly at the patient's chronic normal)*
+    - **Oxygen Saturation (SpO2):** `88%` *(acute fall from baseline 91% down to 88%)*
+    - **Supplemental Oxygen:** Check `On Oxygen`
+  - Click **"Submit Vitals"**.
+- **What to say to the jury (One-line explanation):**
+  > *"In COPD patients, breathing rate is often chronically elevated without danger, but oxygen desaturation below 88% is an acute clinical emergency—WardPulse recognizes his stable respiratory baseline while immediately boosting oxygen failure."*
+- **What the audience sees on screen:**
+  - Bed 5 immediately generates an active card: **"Page the on-duty doctor: Bed 5"**.
+  - Headline reason displays: `Critical hypoxia for COPD: SpO2 88.0% (threshold <= 88%)`.
+  - In Bed 5's patient panel, the `Focus: SpO2, RR` chip is highlighted, the SpO2 sparkline emphasizes the acute drop through the shaded personal baseline band, while breathing rate remains recognized as his chronic normal.
+  - In contrast, a non-COPD control patient given these exact same vitals does not trigger the COPD-specific red line boost.
+- **Cleanup:** Reset the simulation clock (click the Reset button in the top bar) to return the ward to its clean baseline.
+
+---
+
 ## 4. Live Interactive Judge Test (Entering Real Vitals)
 
 Invite a judge to test the system live:
@@ -97,6 +122,10 @@ Invite a judge to test the system live:
    - Respiratory Rate: `28`
 4. Click **"Submit Vitals"**.
 5. **Show the judge:** Within 500ms, the ward strip re-evaluates, Bed 15 flashes red, and an immediate clinical card appears on the nurse console.
+
+> **Data Provenance Transparency Note:**
+> Real public clinical datasets (such as PhysioNet CinC 2019 / MIMIC) contain de-identified raw vitals series but **do not contain chronic condition tags** (e.g. COPD, post-operative markers). As a result, condition profiles are **inert during public data replay** and condition-specific baseline behavior is demonstrated and evaluated on the ward simulator only. This ensures 100% integrity and zero leakage into public benchmark results.
+
 
 ---
 
