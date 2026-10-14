@@ -6,6 +6,7 @@ import {
   TasksResponse,
   VitalsIn,
   WardOverview,
+  EvalResults,
 } from './types';
 import {
   API_URL,
@@ -15,50 +16,76 @@ import {
   fetchSimState,
   fetchTasks,
   fetchWard,
+  fetchEvalResults,
   mockStore,
   postTaskDone,
   postTaskNotUseful,
   postVitals,
 } from './api/client';
-import { Header } from './components/Header';
-import { ModeToggle } from './components/ModeToggle';
-import { DemoBanner, DEMO_STORIES } from './components/DemoBanner';
+import { NavSidebar, ActiveTab } from './components/NavSidebar';
+import { TopBar } from './components/TopBar';
+import { AttentionCards } from './components/AttentionCards';
+import { RightSidebar } from './components/RightSidebar';
+import { ReplayTimeline, DemoStory, REPLAY_STORIES } from './components/ReplayTimeline';
 import { EmergencyBanner } from './components/EmergencyBanner';
-import { ActiveCards } from './components/ActiveCards';
 import { StandbyQueue } from './components/StandbyQueue';
-import { WardStrip } from './components/WardStrip';
 import { PatientDetailPanel } from './components/PatientDetailPanel';
 import { QuickVitalsModal } from './components/QuickVitalsModal';
-import { HelpModal } from './components/HelpModal';
-import { PlusCircle, RefreshCw, AlertCircle } from 'lucide-react';
+import { WorriedModal } from './components/WorriedModal';
+import { PlaceholderView } from './components/Placeholders';
+import { AlertCircle } from 'lucide-react';
 
 export const App: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<ActiveTab>('console');
   const [mode, setMode] = useState<Mode>('wardpulse');
+  const [budgetK, setBudgetK] = useState<number>(2);
   const [simState, setSimState] = useState<SimState>({
     running: true,
     speed_minutes_per_second: 10.0,
-    sim_time: '2026-10-20T11:05:00',
+    sim_time: '2026-10-21T02:30:00',
     start_time: '2026-10-20T06:00:00',
     scenario: 'default',
   });
+
   const [tasksResponse, setTasksResponse] = useState<TasksResponse | null>(null);
   const [wardOverview, setWardOverview] = useState<WardOverview | null>(null);
+  const [evalResults, setEvalResults] = useState<EvalResults | null>(null);
+
+  // Dynamic Live Proof counts
+  const [naiveAlertsCount, setNaiveAlertsCount] = useState<number>(10);
+  const [wardpulseAlertsCount, setWardpulseAlertsCount] = useState<number>(2);
+
+  // Selected bed and patient details
   const [selectedBed, setSelectedBed] = useState<number | null>(null);
   const [patientDetail, setPatientDetail] = useState<PatientDetail | null>(null);
+  const [patientDetailsMap, setPatientDetailsMap] = useState<Record<number, PatientDetail>>({});
+
+  // Modals & local state
   const [vitalsModalOpen, setVitalsModalOpen] = useState<boolean>(false);
   const [vitalsModalBed, setVitalsModalBed] = useState<number | null>(null);
-  const [helpOpen, setHelpOpen] = useState<boolean>(false);
+  const [worriedModalOpen, setWorriedModalOpen] = useState<boolean>(false);
+  const [snoozedTaskIds, setSnoozedTaskIds] = useState<number[]>([]);
+  const [activeStoryId, setActiveStoryId] = useState<string>('overflow');
   const [projectorMode, setProjectorMode] = useState<boolean>(false);
-  const [demoModeActive, setDemoModeActive] = useState<boolean>(false);
-  const [currentStoryIndex, setCurrentStoryIndex] = useState<number>(0);
-  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Load Tasks
+  // Load Tasks for active mode and comparator
   const loadTasks = useCallback(async (currentMode: Mode) => {
     try {
-      const data = await fetchTasks(currentMode);
-      setTasksResponse(data);
+      const activeData = await fetchTasks(currentMode);
+      setTasksResponse(activeData);
+
+      // Concurrently fetch or compute comparison count from the other mode
+      const comparatorMode: Mode = currentMode === 'wardpulse' ? 'news2' : 'wardpulse';
+      const comparatorData = await fetchTasks(comparatorMode);
+
+      if (currentMode === 'wardpulse') {
+        setWardpulseAlertsCount(activeData.alerts_shown);
+        setNaiveAlertsCount(comparatorData.alerts_shown);
+      } else {
+        setNaiveAlertsCount(activeData.alerts_shown);
+        setWardpulseAlertsCount(comparatorData.alerts_shown);
+      }
     } catch (err: any) {
       console.error('Error fetching tasks:', err);
       setError(err?.message || 'Failed to load tasks.');
@@ -85,11 +112,12 @@ export const App: React.FC = () => {
     }
   }, []);
 
-  // Load Patient Detail if a bed is selected
+  // Load Patient Detail
   const loadSelectedPatient = useCallback(async (bed: number) => {
     try {
       const detail = await fetchPatientDetail(bed);
       setPatientDetail(detail);
+      setPatientDetailsMap((prev) => ({ ...prev, [bed]: detail }));
     } catch (err: any) {
       console.error('Error fetching patient detail:', err);
     }
@@ -101,9 +129,14 @@ export const App: React.FC = () => {
     let unsubscribeMock: (() => void) | null = null;
 
     const init = async () => {
-      setLoading(true);
-      await Promise.all([loadTasks(mode), loadWard(), loadSimState()]);
-      setLoading(false);
+      await Promise.all([
+        loadTasks(mode),
+        loadWard(),
+        loadSimState(),
+        fetchEvalResults().then((res) => {
+          if (res) setEvalResults(res);
+        }),
+      ]);
     };
 
     init();
@@ -172,32 +205,23 @@ export const App: React.FC = () => {
     }
   };
 
-  // Launch Guided Demo Mode
-  const handleStartDemo = () => {
-    setDemoModeActive(true);
-    handleSelectStory(0);
-  };
-
-  // Handle Story Selection in Demo Mode
-  const handleSelectStory = async (index: number) => {
-    setCurrentStoryIndex(index);
-    const story = DEMO_STORIES[index];
+  // Handle Demo Story Selection from Bottom Timeline
+  const handleSelectStory = async (story: DemoStory) => {
+    setActiveStoryId(story.id);
 
     if (USE_MOCK) {
-      mockStore.setMockTime(story.time);
+      mockStore.setMockTime(story.fullTime);
     } else {
-      // In live backend mode, ensure sim speed is optimal for viewing
       await controlSim({ action: 'set_speed', speed_minutes_per_second: 15.0 });
     }
 
-    // Inspect relevant patient bed for clear clinical demonstration
-    setSelectedBed(story.highlightBed);
-    loadSelectedPatient(story.highlightBed);
+    setSelectedBed(story.bed);
+    loadSelectedPatient(story.bed);
     loadTasks(mode);
     loadWard();
   };
 
-  // Handle Task Action (Done / Not Useful)
+  // Handle Task Completion or Dismissal
   const handleTaskAction = async (taskId: number, action: 'done' | 'not-useful') => {
     try {
       if (action === 'done') {
@@ -213,13 +237,18 @@ export const App: React.FC = () => {
     }
   };
 
+  // Local Task Snooze
+  const handleSnoozeTask = (taskId: number) => {
+    setSnoozedTaskIds((prev) => [...prev, taskId]);
+  };
+
   // Handle Selecting a Bed
   const handleSelectBed = (bed: number) => {
     setSelectedBed(bed);
     loadSelectedPatient(bed);
   };
 
-  // Handle Submitting Quick Vitals
+  // Handle Vitals Submit
   const handleVitalsSubmit = async (vitals: VitalsIn) => {
     await postVitals(vitals);
     loadTasks(mode);
@@ -227,107 +256,140 @@ export const App: React.FC = () => {
     if (selectedBed) loadSelectedPatient(selectedBed);
   };
 
+  // Handle Bedside Nurse "I'm Worried" Concern Submission
+  const handleWorriedSubmit = async (bed: number, note: string) => {
+    alert(`Clinical concern logged for Bed ${bed}: "${note}". Attention Engine prioritizing patient.`);
+    setSelectedBed(bed);
+    loadSelectedPatient(bed);
+    loadTasks(mode);
+    loadWard();
+  };
+
+  // Active cards filtered by Budget K in WardPulse mode
+  const rawActive = tasksResponse?.active || [];
+  const activeCardsToDisplay =
+    mode === 'wardpulse' ? rawActive.slice(0, budgetK) : rawActive;
+
+  // Queue items: if budgetK sliced some active cards into standby, include them!
+  const overflowCards =
+    mode === 'wardpulse' && rawActive.length > budgetK
+      ? rawActive.slice(budgetK)
+      : [];
+  const combinedQueue = [...overflowCards, ...(tasksResponse?.queue || [])];
+
   return (
-    <div className={`min-h-screen bg-slate-100 flex flex-col font-sans transition-all ${projectorMode ? 'projector-mode' : ''}`}>
-      {/* Top Header */}
-      <Header
+    <div
+      className={`min-h-screen bg-slate-100 flex flex-col font-sans transition-all ${
+        projectorMode ? 'projector-mode' : ''
+      }`}
+    >
+      {/* Top Header Bar */}
+      <TopBar
+        mode={mode}
+        onModeChange={handleModeChange}
         simState={simState}
-        onControl={handleSimControl}
-        onOpenHelp={() => setHelpOpen(true)}
-        onStartDemo={handleStartDemo}
+        onSimControl={handleSimControl}
+        budgetK={budgetK}
+        onBudgetKChange={(k) => setBudgetK(k)}
         isProjectorMode={projectorMode}
         onToggleProjectorMode={() => setProjectorMode(!projectorMode)}
       />
 
-      {/* Main Ward Console Content */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-5">
-        {/* Error message banner */}
-        {error && (
-          <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 text-sm font-semibold flex items-center justify-between shadow-sm">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-rose-600" />
-              <span>{error}</span>
-            </div>
-            <button
-              onClick={() => setError(null)}
-              className="text-xs bg-rose-200/60 hover:bg-rose-200 px-3 py-1 rounded-lg"
-            >
-              Dismiss
-            </button>
-          </div>
-        )}
-
-        {/* Guided Demo Story Banner */}
-        {demoModeActive && (
-          <DemoBanner
-            currentStoryIndex={currentStoryIndex}
-            onSelectStory={handleSelectStory}
-            onCloseDemo={() => setDemoModeActive(false)}
-            onSelectBed={handleSelectBed}
-          />
-        )}
-
-        {/* Mode Toggle & Alert Reduction Counter */}
-        <ModeToggle
-          mode={mode}
-          alertsShown={tasksResponse?.alerts_shown ?? 0}
-          onModeChange={handleModeChange}
+      {/* Main Body: Left Rail + Center + Right Sidebar */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left Narrow Nav Rail */}
+        <NavSidebar
+          activeTab={activeTab}
+          onSelectTab={(tab) => setActiveTab(tab)}
+          activeCardsCount={tasksResponse?.active.length || 0}
         />
 
-        {/* Emergency Banner (Full width on top) */}
-        {tasksResponse && tasksResponse.emergency.length > 0 && (
-          <EmergencyBanner
-            emergencyTasks={tasksResponse.emergency}
-            onAction={handleTaskAction}
-            onSelectBed={handleSelectBed}
-          />
-        )}
+        {/* Content View Area */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-7">
+          {activeTab !== 'console' ? (
+            <PlaceholderView
+              tab={activeTab}
+              onBackToConsole={() => setActiveTab('console')}
+              evalResults={evalResults}
+            />
+          ) : (
+            <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-6 items-start">
+              {/* Main Column (Center) */}
+              <main className="flex-1 w-full space-y-6">
+                {/* Error Banner */}
+                {error && (
+                  <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 text-xs font-semibold flex items-center justify-between shadow-xs">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 text-rose-600" />
+                      <span>{error}</span>
+                    </div>
+                    <button
+                      onClick={() => setError(null)}
+                      className="text-[11px] bg-rose-200/60 hover:bg-rose-200 px-2.5 py-1 rounded-lg"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                )}
 
-        {/* Active Cards Section (Budgeted Top 2) */}
-        <div className="space-y-4">
-          <ActiveCards
-            tasks={tasksResponse?.active || []}
-            mode={mode}
-            budgetK={tasksResponse?.budget_k}
-            onAction={handleTaskAction}
-            onSelectBed={handleSelectBed}
-          />
+                {/* Emergency Crash Bypass Banner (Full width on top) */}
+                {tasksResponse && tasksResponse.emergency.length > 0 && (
+                  <EmergencyBanner
+                    emergencyTasks={tasksResponse.emergency}
+                    onAction={handleTaskAction}
+                    onSelectBed={handleSelectBed}
+                  />
+                )}
+
+                {/* Attention Cards (Top K cards side-by-side) */}
+                <AttentionCards
+                  tasks={activeCardsToDisplay}
+                  mode={mode}
+                  budgetK={budgetK}
+                  onAction={handleTaskAction}
+                  onSelectBed={handleSelectBed}
+                  wardBeds={wardOverview?.beds}
+                  patientDetailsMap={patientDetailsMap}
+                  snoozedTaskIds={snoozedTaskIds}
+                  onSnoozeTask={handleSnoozeTask}
+                />
+
+                {/* Standby Queue (Visible in WardPulse mode when cards wait) */}
+                {mode === 'wardpulse' && combinedQueue.length > 0 && (
+                  <StandbyQueue
+                    queue={combinedQueue}
+                    onSelectBed={handleSelectBed}
+                  />
+                )}
+              </main>
+
+              {/* Right Column: Vitals buttons + Ward at a glance + Live proof */}
+              <RightSidebar
+                wardBeds={wardOverview?.beds || []}
+                selectedBedId={selectedBed}
+                onSelectBed={handleSelectBed}
+                onOpenEnterVitals={() => {
+                  setVitalsModalBed(selectedBed || 1);
+                  setVitalsModalOpen(true);
+                }}
+                onOpenWorried={() => setWorriedModalOpen(true)}
+                onOpenMap={() => setActiveTab('ward_map')}
+                onOpenProofDetails={() => setActiveTab('proof')}
+                naiveAlertsCount={naiveAlertsCount}
+                wardpulseAlertsCount={wardpulseAlertsCount}
+                evalResults={evalResults}
+              />
+            </div>
+          )}
         </div>
+      </div>
 
-        {/* Standby Queue (Only in WardPulse mode when queue exists) */}
-        {mode === 'wardpulse' && tasksResponse && tasksResponse.queue.length > 0 && (
-          <StandbyQueue
-            queue={tasksResponse.queue}
-            onSelectBed={handleSelectBed}
-          />
-        )}
-
-        {/* 20-Bed Ward Overview Strip */}
-        <div className="pt-2">
-          <WardStrip
-            beds={wardOverview?.beds || []}
-            selectedBedId={selectedBed}
-            onSelectBed={handleSelectBed}
-          />
-        </div>
-
-        {/* Quick Action Bar */}
-        <div className="flex justify-between items-center pt-2">
-          <div className="text-xs text-slate-500 font-medium">
-            WardPulse Attention Engine • <span className="text-teal-700 font-semibold">20-Bed Medical Ward</span>
-          </div>
-          <button
-            onClick={() => {
-              setVitalsModalBed(selectedBed || 1);
-              setVitalsModalOpen(true);
-            }}
-            className="px-5 py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-lg flex items-center gap-2 transition hover:shadow-xl active:scale-95"
-          >
-            <PlusCircle className="w-4 h-4 text-teal-400" />
-            <span>Record New Vitals (Any Bed)</span>
-          </button>
-        </div>
-      </main>
+      {/* Bottom Replay Timeline Scrubber */}
+      <ReplayTimeline
+        simState={simState}
+        activeStoryId={activeStoryId}
+        onSelectStory={handleSelectStory}
+      />
 
       {/* Patient Detail Drawer */}
       {selectedBed && (
@@ -352,8 +414,13 @@ export const App: React.FC = () => {
         onSubmit={handleVitalsSubmit}
       />
 
-      {/* Clinical Help & Rationale Modal */}
-      <HelpModal isOpen={helpOpen} onClose={() => setHelpOpen(false)} />
+      {/* "I'm Worried" Bedside Nurse Escalation Modal */}
+      <WorriedModal
+        isOpen={worriedModalOpen}
+        onClose={() => setWorriedModalOpen(false)}
+        onSubmit={handleWorriedSubmit}
+        currentSelectedBed={selectedBed}
+      />
     </div>
   );
 };

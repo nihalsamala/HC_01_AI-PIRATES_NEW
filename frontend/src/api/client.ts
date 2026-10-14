@@ -9,6 +9,7 @@ import {
   VitalsIn,
   VitalsReading,
   WardOverview,
+  EvalResults,
 } from '../types';
 import {
   MOCK_PATIENTS,
@@ -200,3 +201,17 @@ export async function controlSim(control: SimControl): Promise<SimState> {
   if (!res.ok) throw new Error(`Failed to control sim: ${res.statusText}`);
   return res.json();
 }
+
+export async function fetchEvalResults(): Promise<EvalResults | null> {
+  if (USE_MOCK) {
+    return Promise.resolve(null);
+  }
+  try {
+    const res = await fetch(`${API_URL}/eval/results`);
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
