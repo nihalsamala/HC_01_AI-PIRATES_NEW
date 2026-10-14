@@ -20,6 +20,11 @@ from engine.features import PatientFeatures, extract_features
 from engine.news2 import news2_components, news2_score
 from engine.safety import check_red_lines, is_crash
 
+# Machine Learning blending parameters (P8)
+ENABLE_ML: bool = False  # Off by default per safety requirement
+ML_WEIGHT: float = 0.30
+RULE_WEIGHT: float = 0.70
+
 
 def calculate_risk(
     features: PatientFeatures,
@@ -123,10 +128,24 @@ def calculate_risk(
                 reasons.append(rlr)
 
     # 7. Optional Machine Learning Score Blending Hook
+    if ml_score is None and ENABLE_ML:
+        try:
+            from ml.predict import ml_score as get_ml_score
+            ml_score = get_ml_score(features, patient)
+        except Exception:
+            ml_score = None
+
     if ml_score is not None:
-        final_score = round(0.70 * total_rule_score + 0.30 * ml_score, 3)
+        final_score = round(RULE_WEIGHT * total_rule_score + ML_WEIGHT * ml_score, 3)
+        if ml_score >= 0.70:
+            reasons.append(f"ML early deterioration warning ({ml_score:.0%})")
     else:
         final_score = round(total_rule_score, 3)
+
+    # Safety Floor Guarantee:
+    # A personal baseline or ML score can NEVER suppress an absolute red-line breach
+    if red_line_breached:
+        final_score = max(final_score, config.tier_high)
 
     final_score = max(0.0, min(1.0, final_score))
 
