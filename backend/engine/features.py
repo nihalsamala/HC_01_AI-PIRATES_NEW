@@ -198,14 +198,7 @@ def extract_features(
         else:
             effective_base = obs_median
 
-        # Calculate deviation (z-score)
-        if current_val is not None:
-            z = (current_val - effective_base) / spread
-        else:
-            z = 0.0
-
-        # Calculate trend per hour
-        # Look for the last measurement of this vital with timestamp before latest
+        # Find the previous measurement of this vital (before latest_reading)
         prev_vital_val: Optional[float] = None
         prev_vital_time: Optional[datetime] = None
         for r in reversed(sorted_readings[:-1]):
@@ -215,6 +208,14 @@ def extract_features(
                 prev_vital_time = r.timestamp
                 break
 
+        # Calculate deviation (z-score) using current value or last recorded measurement
+        ref_val = current_val if current_val is not None else prev_vital_val
+        if ref_val is not None:
+            z = (ref_val - effective_base) / spread
+        else:
+            z = 0.0
+
+        # Calculate trend per hour
         trend_per_hour: Optional[float] = None
         if current_val is not None and prev_vital_val is not None and prev_vital_time is not None:
             dt_hours = (latest_reading.timestamp - prev_vital_time).total_seconds() / 3600.0
@@ -235,7 +236,7 @@ def extract_features(
 
         baselines[vital] = VitalBaseline(
             vital=vital,
-            current_value=current_val,
+            current_value=ref_val,
             effective_baseline=round(effective_base, 1),
             spread=round(spread, 2),
             z_score=round(z, 2),

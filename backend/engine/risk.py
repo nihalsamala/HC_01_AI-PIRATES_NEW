@@ -86,8 +86,8 @@ def calculate_risk(
         deviation_penalty += boost
         reasons.append(f"RR elevated vs baseline ({b_rr.effective_baseline:.0f} -> {b_rr.current_value:.0f})")
 
-    if b_sbp and b_sbp.z_score < -2.0:
-        boost = min(0.20, abs(b_sbp.z_score + 1.5) * 0.06)
+    if b_sbp and b_sbp.z_score < -1.5:
+        boost = min(0.25, abs(b_sbp.z_score + 1.0) * 0.10)
         deviation_penalty += boost
         reasons.append(f"SBP falling vs baseline ({b_sbp.effective_baseline:.0f} -> {b_sbp.current_value:.0f} mmHg)")
 
