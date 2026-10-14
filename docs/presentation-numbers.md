@@ -31,7 +31,7 @@ This document provides the definitive, empirically measured evidence table for t
 | **COPD Cohort Alert Rate (NEWS2 Scale 1)** | **0.33** alerts/nurse-hr | **3.67** alerts/nurse-hr | Evaluated on chronic COPD patients; standard default NEWS2 chart (Scale 1) | Synthetic (ablation study across 4 seeds) | `python -m evaluation.ablation` |
 | **COPD Cohort Alert Rate (NEWS2 Scale 2)** | **0.33** alerts/nurse-hr | **1.00** alerts/nurse-hr | Evaluated on chronic COPD patients; dedicated 88–92% target chart (Scale 2) | Synthetic (ablation study across 4 seeds) | `python -m evaluation.ablation` |
 | **Pytest Test Suite Pass Count** | **64 passed** (0 failed) | Integrated in tests | Full automated test suite across 9 test files | Unit, engine, contract, api, eval tests | `pytest` |
-| **Repository Commit Count** | **39 commits** | N/A | Total revision history depth on `main` branch | Git repository history | `git rev-list --count HEAD` |
+| **Repository Commit Count** | **41 commits** | N/A | Total revision history depth on `main` branch | Git repository history | `git rev-list --count HEAD` |
 
 ---
 
