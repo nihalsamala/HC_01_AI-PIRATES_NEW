@@ -26,7 +26,7 @@ Pop-Location
 
 # 3. Start backend in a background job or separate process
 Write-Host "[2/3] Starting FastAPI Backend on http://localhost:8000..." -ForegroundColor Green
-$BackendProcess = Start-Process -FilePath $PythonExe -ArgumentList "-m", "uvicorn", "app.main:app", "--port", "8000" -WorkingDirectory (Join-Path $RepoRoot "backend") -PassThru
+$BackendProcess = Start-Process -FilePath $PythonExe -ArgumentList "-m", "uvicorn", "app.main:app", "--port", "8000", "--reload" -WorkingDirectory (Join-Path $RepoRoot "backend") -PassThru
 
 # 4. Start frontend
 Write-Host "[3/3] Starting Vite React Console on http://localhost:5173..." -ForegroundColor Green
