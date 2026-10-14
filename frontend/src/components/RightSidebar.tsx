@@ -6,7 +6,8 @@ import {
   TrendingDown,
   ShieldCheck,
 } from 'lucide-react';
-import { WardBed, EvalResults } from '../types';
+import { WardBed, EvalResults, Task, PatientDetail } from '../types';
+import { extractPatternReason } from '../utils/reasons';
 
 interface RightSidebarProps {
   wardBeds: WardBed[];
@@ -20,6 +21,8 @@ interface RightSidebarProps {
   naiveAlertsCount: number;
   wardpulseAlertsCount: number;
   evalResults: EvalResults | null;
+  tasks?: Task[];
+  patientDetailsMap?: Record<number, PatientDetail>;
 }
 
 export const RightSidebar: React.FC<RightSidebarProps> = ({
@@ -33,16 +36,25 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
   naiveAlertsCount,
   wardpulseAlertsCount,
   evalResults,
+  tasks = [],
+  patientDetailsMap = {},
 }) => {
   // Ensure we have 20 beds represented
   const bedList = Array.from({ length: 20 }, (_, i) => {
     const bedNum = i + 1;
     const found = wardBeds.find((b) => b.bed === bedNum);
+    const matchingTask = tasks.find((t) => t.bed === bedNum);
+    const matchingDetail = patientDetailsMap[bedNum];
+    const patternLine =
+      extractPatternReason(matchingTask?.reason) ||
+      extractPatternReason(matchingDetail?.assessment?.reasons);
+
     return {
       bed: bedNum,
       status: found ? found.status : 'stable',
       hasOpenTask: found ? found.has_open_task : false,
       isCrash: found ? found.risk_tier === 'critical' || found.status === 'critical' : false,
+      patternLine,
     };
   });
 
@@ -126,7 +138,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                 className={`h-11 rounded-xl border flex flex-col items-center justify-center transition-all relative ${bgClass} ${
                   isSelected ? 'ring-2 ring-teal-600 font-black' : ''
                 }`}
-                title={`Bed ${item.bed}: ${item.status}`}
+                title={item.patternLine ? `Bed ${item.bed}: ${item.patternLine}` : `Bed ${item.bed}: ${item.status}`}
               >
                 <span className="text-xs font-bold leading-none">{item.bed}</span>
                 <span className="mt-1 flex items-center justify-center">{marker}</span>

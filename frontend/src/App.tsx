@@ -378,6 +378,8 @@ export const App: React.FC = () => {
                 naiveAlertsCount={naiveAlertsCount}
                 wardpulseAlertsCount={wardpulseAlertsCount}
                 evalResults={evalResults}
+                tasks={activeCardsToDisplay}
+                patientDetailsMap={patientDetailsMap}
               />
             </div>
           )}

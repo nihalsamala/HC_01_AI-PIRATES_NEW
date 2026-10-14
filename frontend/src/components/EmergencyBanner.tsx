@@ -1,6 +1,7 @@
 import React from 'react';
 import { Task } from '../types';
 import { AlertOctagon, CheckCircle2, ChevronRight, PhoneCall } from 'lucide-react';
+import { formatCardReason } from '../utils/reasons';
 
 interface EmergencyBannerProps {
   emergencyTasks: Task[];
@@ -40,7 +41,7 @@ export const EmergencyBanner: React.FC<EmergencyBannerProps> = ({
                 </span>
               </div>
               <p className="text-rose-100 text-sm mt-1 font-medium max-w-3xl">
-                {task.reason}
+                {formatCardReason(task.reason, task.title)}
               </p>
             </div>
           </div>

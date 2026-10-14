@@ -1,6 +1,7 @@
 import React from 'react';
 import { Task } from '../types';
 import { ListOrdered, Clock, ChevronRight } from 'lucide-react';
+import { formatCardReason } from '../utils/reasons';
 
 interface StandbyQueueProps {
   queue: Task[];
@@ -47,7 +48,7 @@ export const StandbyQueue: React.FC<StandbyQueueProps> = ({ queue, onSelectBed }
                   {task.title}
                 </span>
                 <span className="text-xs text-slate-500 block sm:inline sm:ml-2">
-                  — {task.reason}
+                  — {formatCardReason(task.reason, task.title)}
                 </span>
               </div>
             </div>

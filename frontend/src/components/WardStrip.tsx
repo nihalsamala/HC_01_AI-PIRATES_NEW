@@ -1,14 +1,23 @@
 import React from 'react';
-import { WardBed, WardStatus } from '../types';
+import { WardBed, WardStatus, Task, PatientDetail } from '../types';
 import { Clock, AlertCircle, Sparkles, CheckCircle2, AlertOctagon } from 'lucide-react';
+import { extractPatternReason } from '../utils/reasons';
 
 interface WardStripProps {
   beds: WardBed[];
   selectedBedId: number | null;
   onSelectBed: (bed: number) => void;
+  tasks?: Task[];
+  patientDetailsMap?: Record<number, PatientDetail>;
 }
 
-export const WardStrip: React.FC<WardStripProps> = ({ beds, selectedBedId, onSelectBed }) => {
+export const WardStrip: React.FC<WardStripProps> = ({
+  beds,
+  selectedBedId,
+  onSelectBed,
+  tasks = [],
+  patientDetailsMap = {},
+}) => {
   const getStatusStyles = (status: WardStatus) => {
     switch (status) {
       case 'critical':
@@ -79,18 +88,24 @@ export const WardStrip: React.FC<WardStripProps> = ({ beds, selectedBedId, onSel
         {beds.map((b) => {
           const style = getStatusStyles(b.status);
           const isSelected = selectedBedId === b.bed;
+          const matchingTask = tasks.find((t) => t.bed === b.bed);
+          const matchingDetail = patientDetailsMap[b.bed];
+          const patternLine =
+            extractPatternReason(matchingTask?.reason) ||
+            extractPatternReason(matchingDetail?.assessment?.reasons);
 
           return (
             <button
               key={b.bed}
               onClick={() => onSelectBed(b.bed)}
-              className={`p-2.5 rounded-xl border transition-all text-left relative flex flex-col justify-between h-24 ${
+              className={`p-2 rounded-xl border transition-all text-left relative flex flex-col justify-between min-h-[96px] ${
                 style.bg
               } ${
                 isSelected
                   ? 'ring-2 ring-teal-500 shadow-md scale-[1.02] border-teal-500'
                   : 'hover:shadow-sm'
               }`}
+              title={patternLine ? `Bed ${b.bed}: ${patternLine}` : `Bed ${b.bed}: ${b.status}`}
             >
               {/* Top row: Bed number & Status badge */}
               <div className="flex items-center justify-between w-full">
@@ -100,16 +115,24 @@ export const WardStrip: React.FC<WardStripProps> = ({ beds, selectedBedId, onSel
                 {style.icon}
               </div>
 
-              {/* Conditions chips */}
-              <div className="flex flex-wrap gap-0.5 my-1">
-                {b.conditions.map((c) => (
-                  <span
-                    key={c}
-                    className="text-[10px] font-semibold px-1 py-0.2 rounded bg-slate-200/80 text-slate-700 uppercase"
-                  >
-                    {c === 'post_op' ? 'Post-Op' : c.toUpperCase()}
+              {/* Conditions chips & Pattern line */}
+              <div className="my-1 space-y-1">
+                <div className="flex flex-wrap gap-0.5">
+                  {b.conditions.map((c) => (
+                    <span
+                      key={c}
+                      className="text-[9px] font-semibold px-1 py-0.2 rounded bg-slate-200/80 text-slate-700 uppercase"
+                    >
+                      {c === 'post_op' ? 'Post-Op' : c.toUpperCase()}
+                    </span>
+                  ))}
+                </div>
+
+                {patternLine && (
+                  <span className="text-[9px] font-bold text-teal-900 bg-teal-100/90 border border-teal-200 px-1 py-0.5 rounded block truncate leading-tight">
+                    {patternLine}
                   </span>
-                ))}
+                )}
               </div>
 
               {/* Bottom row: Stale marker or Task marker */}

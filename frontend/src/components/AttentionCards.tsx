@@ -12,6 +12,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { Mode, Task, WardBed, PatientDetail } from '../types';
+import { formatCardReason } from '../utils/reasons';
 
 interface AttentionCardsProps {
   tasks: Task[];
@@ -345,9 +346,9 @@ export const AttentionCards: React.FC<AttentionCardsProps> = ({
                   </span>
                 </div>
 
-                {/* Headline Sentence (Built from task.reason) */}
+                {/* Headline Sentence (Built from task.reason, prioritizing clinical pattern line) */}
                 <h3 className="mt-3 text-base font-extrabold text-slate-900 leading-snug">
-                  {task.reason || task.title}
+                  {formatCardReason(task.reason, task.title, detail?.assessment?.reasons)}
                 </h3>
 
                 {/* Key Vitals Display with Baseline Comparisons & Arrows */}

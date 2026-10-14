@@ -38,6 +38,55 @@ export const PatientDetailPanel: React.FC<PatientDetailPanelProps> = ({
   const spo2Series = recent_vitals.map((v) => v.spo2).filter((v): v is number => v !== null && v !== undefined);
   const tempSeries = recent_vitals.map((v) => v.temp).filter((v): v is number => v !== null && v !== undefined);
 
+  // Derive focus vitals for this patient
+  const focusVitals: string[] =
+    patient.focus_vitals && patient.focus_vitals.length > 0
+      ? patient.focus_vitals
+      : patient.conditions.includes('copd')
+      ? ['spo2', 'rr']
+      : patient.conditions.includes('post_op')
+      ? ['rr', 'hr']
+      : patient.conditions.includes('cardiac')
+      ? ['hr', 'sbp']
+      : [];
+
+  const formatVitalLabel = (v: string): string => {
+    switch (v) {
+      case 'spo2':
+        return 'SpO2';
+      case 'rr':
+        return 'RR';
+      case 'hr':
+        return 'HR';
+      case 'sbp':
+        return 'BP';
+      case 'dbp':
+        return 'DBP';
+      case 'temp':
+        return 'Temp';
+      default:
+        return v.toUpperCase();
+    }
+  };
+
+  // Helper to compute patient baseline band (median +/- spread) from readings in component
+  const computeBaselineBand = (vals: number[]) => {
+    if (vals.length < 2) return undefined;
+    const sorted = [...vals].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    const median = sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+    const devs = sorted.map((v) => Math.abs(v - median)).sort((a, b) => a - b);
+    const mad = devs.length % 2 !== 0 ? devs[mid] : (devs[mid - 1] + devs[mid]) / 2;
+    const spread = Math.max(1.4826 * mad, 1.0);
+    return { median: Number(median.toFixed(1)), spread: Number(spread.toFixed(1)) };
+  };
+
+  const hrBand = computeBaselineBand(hrSeries);
+  const sbpBand = computeBaselineBand(sbpSeries);
+  const rrBand = computeBaselineBand(rrSeries);
+  const spo2Band = computeBaselineBand(spo2Series);
+  const tempBand = computeBaselineBand(tempSeries);
+
   const latestReading = recent_vitals[recent_vitals.length - 1];
 
   return (
@@ -69,11 +118,18 @@ export const PatientDetailPanel: React.FC<PatientDetailPanelProps> = ({
 
       {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto p-5 space-y-5">
-        {/* Condition Tags */}
-        <div>
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
-            Clinical Baseline Conditions
-          </h3>
+        {/* Condition Tags & Focus Vitals Chips */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 m-0">
+              Clinical Baseline Conditions
+            </h3>
+            {focusVitals.length > 0 && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider bg-purple-100 text-purple-900 border border-purple-300 shadow-2xs">
+                Focus: {focusVitals.map(formatVitalLabel).join(', ')}
+              </span>
+            )}
+          </div>
           <div className="flex flex-wrap gap-1.5">
             {patient.conditions.length > 0 ? (
               patient.conditions.map((c) => (
@@ -133,19 +189,26 @@ export const PatientDetailPanel: React.FC<PatientDetailPanelProps> = ({
         {/* Sparkline Vital Trends */}
         <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-2">
           <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 m-0">
-              Vital Sign Trends (Recent 24h)
-            </h3>
-            <span className="text-[10px] text-slate-400">Inline Sparklines</span>
+            <div>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 m-0">
+                Vital Sign Trends (Recent 24h)
+              </h3>
+              <p className="text-[10px] text-slate-400 mt-0.5">
+                Shaded bands show patient baseline (median ± spread) on focus vitals
+              </p>
+            </div>
+            <span className="text-[10px] text-slate-400 font-medium">Sparklines</span>
           </div>
 
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <Sparkline
               label="Heart Rate"
               data={hrSeries}
               unit="bpm"
               color="#0284c7"
               currentValue={latestReading?.hr}
+              isFocus={focusVitals.includes('hr')}
+              baselineBand={focusVitals.includes('hr') ? hrBand : undefined}
             />
             <Sparkline
               label="Blood Press."
@@ -153,6 +216,8 @@ export const PatientDetailPanel: React.FC<PatientDetailPanelProps> = ({
               unit="mmHg"
               color="#0d9488"
               currentValue={latestReading?.sbp ? `${latestReading.sbp}/${latestReading.dbp ?? '-'}` : null}
+              isFocus={focusVitals.includes('sbp')}
+              baselineBand={focusVitals.includes('sbp') ? sbpBand : undefined}
             />
             <Sparkline
               label="Breathing (RR)"
@@ -160,6 +225,8 @@ export const PatientDetailPanel: React.FC<PatientDetailPanelProps> = ({
               unit="/min"
               color="#7c3aed"
               currentValue={latestReading?.rr}
+              isFocus={focusVitals.includes('rr')}
+              baselineBand={focusVitals.includes('rr') ? rrBand : undefined}
             />
             <Sparkline
               label="SpO2 Sat."
@@ -167,6 +234,8 @@ export const PatientDetailPanel: React.FC<PatientDetailPanelProps> = ({
               unit="%"
               color="#e11d48"
               currentValue={latestReading?.spo2}
+              isFocus={focusVitals.includes('spo2')}
+              baselineBand={focusVitals.includes('spo2') ? spo2Band : undefined}
             />
             <Sparkline
               label="Temp"
@@ -174,6 +243,8 @@ export const PatientDetailPanel: React.FC<PatientDetailPanelProps> = ({
               unit="°C"
               color="#d97706"
               currentValue={latestReading?.temp}
+              isFocus={focusVitals.includes('temp')}
+              baselineBand={focusVitals.includes('temp') ? tempBand : undefined}
             />
           </div>
         </div>

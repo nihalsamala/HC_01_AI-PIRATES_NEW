@@ -65,6 +65,7 @@ export interface Patient {
   conditions: Condition[];
   admitted_at: string;
   display_name?: string | null;
+  focus_vitals?: VitalName[];
 }
 
 export interface VitalsBase {
