@@ -1,87 +1,123 @@
-# WardPulse Demonstration Script
+# WardPulse Live Demonstration Script
 
-This document scripts the live demonstration of WardPulse for hackathon judges and clinical evaluators.
-It shows how WardPulse prevents alarm fatigue and allocates nurse attention across a 20-bed hospital ward.
-
----
-
-## Simulation Setup
-
-- **Simulation Start Time (`SIM_START`)**: `2026-10-20 06:00:00`
-- **Ward Configuration**: 20 general ward beds with varied ages and conditions (COPD, post-op, cardiac, general recovery).
-- **History**: 24 hours of prior vitals recorded at realistic 4–6 hour intervals with minor time jitter and measurement noise.
-- **Attention Budget**: $K = 2$ active cards maximum on screen. Unequivocal crash cases trigger **Crash Bypass**.
+This script is the definitive, click-by-click presentation guide for demonstrating WardPulse to hackathon judges, clinical evaluators, and hospital administrators.
 
 ---
 
-## Scripted Stories and Timeline
+## 1. Setup & Pre-Flight Checklist
 
-### Story 1: Same Number, Different Patients
-- **Simulation Time**: `2026-10-20 07:00:00` (`SIM_START + 1h`)
-- **Clinical Scenario**:
-  - **Bed 3 (COPD)**: Has a chronic respiratory rate of 21–23 breaths/min and $\text{SpO}_2$ 90–92% across the entire 24-hour history.
-  - **Bed 7 (Post-op)**: Underwent surgery 20 hours ago. Her respiratory rate was previously normal and steady (14, 14, 15, 17 breaths/min) with a rising pulse (72 $\to$ 92 bpm). At 07:00, her RR reaches **22 breaths/min** and pulse reaches **98 bpm**.
-  - **The Dilemma**: Both patients now have the exact same respiratory rate ($RR = 22$).
-- **What the Audience Sees**:
-  - **Naive AI (NEWS2 Mode)**:
-    - Fixed thresholds flag Bed 3 with high scores ($\text{SpO}_2 \le 91\%$ scores 3 points, $RR \ge 21$ scores 2 points).
-    - Flags Bed 7, Bed 3, Bed 5, Bed 9, Bed 14, Bed 18 simultaneously (6+ loud alarms).
-  - **WardPulse Mode**:
-    - Evaluates each patient against their **personal baseline** and condition prior.
-    - **Bed 3**: Identified as stable chronic baseline $\to$ **No card**.
-    - **Bed 7**: Identified as acute post-op deterioration $\to$ **Active card** surfaced: `"Recount breathing rate: Bed 7"` / `"Page the on-duty doctor: Bed 7"`.
-  - **Key Takeaway**: WardPulse treats patients, not isolated numbers.
+Before taking the stage:
+1. **Launch the Stack:**
+   ```powershell
+   # Start backend and frontend together:
+   .\scripts\run_all.ps1
+   ```
+2. **Open the Console:** Navigate to [http://localhost:5173](http://localhost:5173) in your browser.
+3. **Verify Health:** Look at the top header:
+   - Green badge indicates `LIVE API` connected (or `MOCK DATA` if running standalone).
+   - Sim clock displays `2026-10-20 06:00:00` (or running forward).
+4. **Projector Ready:** If presenting on a large screen or projector, click **"Projector Text"** in the top header to enlarge fonts, card titles, and counter badges.
 
 ---
 
-### Story 2: Stale BP vs. False Alarm
-- **Simulation Time**: `2026-10-20 09:00:00` (`SIM_START + 3h`)
-- **Clinical Scenario**:
-  - **Bed 4**: Had borderline and gently falling systolic blood pressure earlier (128 down to 112 mmHg).
-  - Last manual BP was taken at `02:00:00` (`SIM_START - 4h`).
-  - At `05:00:00` (`SIM_START - 1h`), other vitals were retaken, but the blood pressure cuff was omitted.
-  - At `09:00:00`, Bed 4's blood pressure measurement is now **7 hours old** ($> 1.5\times$ the recommended due interval).
-- **What the Audience Sees**:
-  - **Naive / Poorly Designed AI**: Predicts "High Risk of Shock" because the last recorded BP was low.
-  - **WardPulse Mode**:
-    - Disentangles **risk** from **freshness**.
-    - Because the vital is stale rather than acutely plummeting, WardPulse emits:
-      `"Repeat manual BP: Bed 4"` with reason `"BP not taken for 7h; prior SBP 112"`.
-    - It instructs the nurse to verify the measurement before escalating to a doctor.
-    - **Slots Occupied**: Bed 7 and Bed 4 now fill the $K = 2$ active slots.
-  - **Key Takeaway**: Never confuse outdated data with an acute emergency.
+## 2. Quick 60-Second Elevator Pitch (What to Say)
+
+> *"In an understaffed 20-bed hospital ward, two nurses are responsible for monitoring twenty acutely ill patients. Today's early warning systems, like NEWS2, use rigid population thresholds. If a COPD patient normally breathes at 22 breaths per minute, the alarm rings every single hour. When ten alarms go off at once, nurses experience severe alarm fatigue—and real deterioration gets lost in the noise.*
+>
+> *WardPulse transforms early warning from an alarm flood into an **AI Attention Allocator**. It evaluates each patient against their **personal baseline**, separates **clinical risk** from **data freshness**, and limits the screen to the **top 2 immediate actions** for the next 15 minutes. And if an unequivocal crash occurs, it **bypasses the queue** straight to an emergency banner. Let me show you how it works."*
 
 ---
 
-### Story 3: Crash Bypass
-- **Simulation Time**: `2026-10-20 11:00:00` (`SIM_START + 5h`)
-- **Clinical Scenario**:
-  - **Bed 12**: A patient who has been completely stable all day suddenly exhibits severe septic shock vitals:
-    - Systolic BP: **78 mmHg**
-    - Heart Rate: **135 bpm**
-    - $\text{SpO}_2$: **86%**
-    - Respiratory Rate: **28 breaths/min**
-    - Consciousness: **Confusion (C)**
-  - **The Dilemma**: Beds 7 and 4 already occupy the $K=2$ available slots on the nurse's screen. In a naive queue, Bed 12 would be hidden in the backlog.
-- **What the Audience Sees**:
-  - WardPulse's **Hard Safety Layer** evaluates absolute red-line criteria.
-  - Bed 12 unequivocally trips `is_crash(...) == True`.
-  - **Crash Bypass Triggered**:
-    - Bed 12 immediately surfaces in a high-priority red **EMERGENCY BANNER** at the very top of the console.
-    - Beds 7 and 4 remain in their active attention slots.
-  - **Key Takeaway**: Safe attention allocation budgets must always have a hard-coded bypass for unequivocal clinical crashes.
+## 3. The 3 Scripted Clinical Scenarios (Step-by-Step)
+
+You can run this manually using the clock controls, or click the **"Guided Demo"** button in the header.
 
 ---
 
-## Demonstrating Naive Mode vs. WardPulse Mode (The Toggle Demo)
+### Step 1: Launch Guided Demo Mode
+- **Action:** Click the **"Guided Demo"** button (top right header).
+- **What happens on screen:**
+  - A dark teal story caption banner appears: **"Story 1: Personal Baselines (1/3)"**.
+  - Simulation time jumps to `07:00:00`.
+  - Bed 7 is automatically selected, opening her vital trend sparklines in the side panel.
 
-During the presentation, toggle between **WardPulse Mode** and **Naive NEWS2 Mode**:
+---
 
-| Feature | Naive AI (NEWS2) | WardPulse |
-|---|---|---|
-| **Attention Budget** | None (unbounded alerts) | Strict $K = 2$ active cards + Emergency |
-| **Active Cards on Screen** | 6 to 10 simultaneous alerts | Exactly 2 active cards + Crash Banner |
-| **Bed 3 (Stable COPD)** | Red alert (Score $\ge 5$) | Quiet / Watch (Personal baseline recognized) |
-| **Bed 4 (Stale BP)** | Alarms or misses staleness | Actionable card: `"Repeat manual BP"` |
-| **Bed 12 (Crash)** | Just another card in a long list | Instant top-of-screen Emergency Banner |
-| **Nurse Cognitive Load** | Extreme alarm fatigue | Clear, prioritized, 15-minute action plan |
+### Step 2: Story 1 — Same Breathing Rate, Different Patients
+- **Simulation Time:** `2026-10-20 07:00:00` (+1 hour into shift).
+- **What to say:**
+  > *"Look at Bed 3 and Bed 7. Both patients currently have the exact same respiratory rate: 22 breaths per minute. Under standard NEWS2, both trigger alerts.
+  > But look at who they are: Bed 3 is a chronic COPD patient whose baseline respiratory rate has been 21 to 23 for days. WardPulse recognizes this is his personal normal and keeps the ward quiet.
+  > Meanwhile, Bed 7 is a post-operative patient whose baseline breathing rate was 14. Climbing to 22 is an acute 57% baseline breach. WardPulse puts an active card on screen: 'Page on-duty doctor for Bed 7'."*
+- **Click:** Click **"Naive AI (Standard NEWS2)"** on the mode toggle.
+  - **What the audience sees:** The counter jumps from **1** to **6+ alerts**. Bed 3, Bed 5, Bed 9 all turn red.
+- **Click:** Toggle back to **"WardPulse"**.
+  - **What the audience sees:** The counter drops back to **1 actionable card**. The noise vanishes.
+
+---
+
+### Step 3: Story 2 — Stale Data is a Task, Not Panic
+- **Action:** Click **"Next Story"** on the demo banner (or step to Story 2).
+- **Simulation Time:** `2026-10-20 09:00:00` (+3 hours into shift).
+- **What to say:**
+  > *"At 09:00, Bed 4 had a low blood pressure earlier (112 mmHg), but the blood pressure cuff was skipped during the last round. Her BP reading is now over 7 hours old.
+  > A naive ML model would predict high shock risk based on outdated numbers, panicking the team.
+  > WardPulse disentangles risk from freshness. It does not page a doctor on stale numbers. Instead, it generates a focused triage task: 'Repeat manual BP on Bed 4'. It tells the nurse to verify reality before escalating."*
+- **What the audience sees:**
+  - Bed 4 tile on the ward strip shows a yellow "WATCH" status with a dotted stale-vitals indicator.
+  - Active card 2 appears: **"Repeat manual BP: Bed 4"** with reason *"BP not taken for 7h; prior SBP 112"*.
+  - Total active demands = **2**. Notice that the $K=2$ attention budget is perfectly filled.
+
+---
+
+### Step 4: Story 3 — Unequivocal Crash Bypasses the Budget
+- **Action:** Click **"Next Story"** on the demo banner (or step to Story 3).
+- **Simulation Time:** `2026-10-20 11:00:00` (+5 hours into shift).
+- **What to say:**
+  > *"Now an emergency happens. Bed 12, who was stable all morning, suddenly collapses into septic shock: blood pressure drops to 78, heart rate spikes to 135, oxygen drops to 86%, and consciousness shifts to confusion.
+  > Our attention budget is already full with Beds 7 and 4. In a naive system, an emergency would wait in a backlog.
+  > But WardPulse has a hard-coded clinical safety floor: Unequivocal physiological collapse bypasses all queuing and sounds an immediate, unmistakable Emergency Banner at the very top of the screen. Beds 7 and 4 stay in their slots. No patient is ever hidden when life is on the line."*
+- **What the audience sees:**
+  - A flashing red **"EMERGENCY BYPASS: BED 12 — CRITICAL PHYSIOLOGICAL COLLAPSE"** banner spans the top of the console.
+  - The nurse can click **"Acknowledged / Done"** to log the emergency action into the audit trail.
+
+---
+
+## 4. Live Interactive Judge Test (Entering Real Vitals)
+
+Invite a judge to test the system live:
+1. Click **"Record New Vitals (Any Bed)"** floating at the bottom right.
+2. Select **Bed 15** (currently green and stable).
+3. Enter abnormal vitals:
+   - Heart Rate: `130`
+   - Systolic BP: `82`
+   - Respiratory Rate: `28`
+4. Click **"Submit Vitals"**.
+5. **Show the judge:** Within 500ms, the ward strip re-evaluates, Bed 15 flashes red, and an immediate clinical card appears on the nurse console.
+
+---
+
+## 5. Live Mode Comparison Summary (The 5-Second Reveal)
+
+Flip between **WardPulse** and **Naive NEWS2** one final time:
+
+| What Judges Notice | Naive AI (NEWS2) | WardPulse |
+| :--- | :---: | :---: |
+| **Active Cards on Screen** | **11 simultaneous alarms** | **2 prioritized cards** |
+| **Nurse Cognitive Load** | Alarm fatigue, chaotic scrolling | Calm, actionable 15-minute plan |
+| **Chronic COPD (Bed 3)** | Constant false red alerts | Recognized personal baseline |
+| **Stale Blood Pressure (Bed 4)** | Panicked false alarm | Actionable "Repeat BP" task |
+| **Septic Collapse (Bed 12)** | Lost in the list of 11 alarms | Top-level Emergency Banner bypass |
+| **False Alarm Reduction** | Baseline (High Fatigue) | **-73% reduction in active demands** |
+
+---
+
+## 6. Fallback Procedures (If Anything Fails)
+
+- **If Wi-Fi drops or backend is unreachable:**
+  - The frontend has zero external cloud dependencies.
+  - Open `frontend/.env` and set `VITE_USE_MOCK=true`.
+  - Restart frontend (`npm run dev`). The interactive console runs entirely in-memory with full simulation playback, sparklines, and story progressions.
+- **If the simulation gets out of sync:**
+  - Click the **"Reset"** button (circular arrow in the header clock).
+  - Click **"Guided Demo"** $\to$ Story 1.
