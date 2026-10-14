@@ -286,7 +286,16 @@ class TestAudit:
 
 
 class TestEvalResults:
-    def test_eval_results_404_when_missing(self, client):
-        """GET /eval/results returns 404 when results.json doesn't exist."""
+    def test_eval_results(self, client):
+        """GET /eval/results returns 200 when results.json exists, 404 when missing."""
+        from pathlib import Path
+        results_file = Path(__file__).resolve().parent.parent / "evaluation" / "results.json"
         r = client.get("/eval/results")
-        assert r.status_code == 404
+        if results_file.exists():
+            assert r.status_code == 200
+            data = r.json()
+            assert "dataset" in data
+            assert "systems" in data
+            assert len(data["systems"]) == 2
+        else:
+            assert r.status_code == 404

@@ -1,0 +1,32 @@
+{
+  "dataset": "WardPulse Synthetic Ward Cohort (Fallback)",
+  "sampling_interval_hours": 4.0,
+  "n_patients": 50,
+  "generated_at": "2026-10-14T20:07:27.181519",
+  "systems": [
+    {
+      "system": "wardpulse",
+      "events_total": 16,
+      "events_detected": 14,
+      "sensitivity": 0.875,
+      "median_lead_time_hours": 2.0,
+      "alerts_per_nurse_hour": 1.15,
+      "measure_tasks_per_nurse_hour": 0.15,
+      "false_alert_ratio": 0.86
+    },
+    {
+      "system": "news2",
+      "events_total": 16,
+      "events_detected": 14,
+      "sensitivity": 0.875,
+      "median_lead_time_hours": 2.0,
+      "alerts_per_nurse_hour": 1.17,
+      "measure_tasks_per_nurse_hour": null,
+      "false_alert_ratio": 0.862
+    }
+  ],
+  "notes": [
+    "Synthetic fallback dataset: 50 simulated general ward cases with realistic deterioration profiles.",
+    "Caveat: Synthetic proof-of-concept demonstration. No clinical validation claimed."
+  ]
+}
