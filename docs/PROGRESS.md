@@ -50,7 +50,7 @@ Project-level status: Round 1 form submitted and the objective and goals present
 
 ## Open questions and blockers
 
-- (none yet)
+- Git push is stuck / requires interactive credentials: human should push manually from PowerShell (`git push origin main`).
 
 ## Known risks to watch
 
