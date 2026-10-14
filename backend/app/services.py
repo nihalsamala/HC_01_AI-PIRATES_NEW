@@ -159,8 +159,11 @@ def load_patients(db: Session) -> List[Patient]:
     return [_row_to_patient(r) for r in rows]
 
 
-def load_vitals(db: Session) -> Dict[int, List[VitalsReading]]:
-    rows = db.query(VitalsRow).order_by(VitalsRow.timestamp).all()
+def load_vitals(db: Session, up_to: Optional[datetime] = None) -> Dict[int, List[VitalsReading]]:
+    query = db.query(VitalsRow)
+    if up_to is not None:
+        query = query.filter(VitalsRow.timestamp <= up_to)
+    rows = query.order_by(VitalsRow.timestamp).all()
     result: Dict[int, List[VitalsReading]] = {}
     for r in rows:
         reading = _row_to_reading(r)
@@ -182,7 +185,7 @@ def load_open_tasks(db: Session) -> List[Task]:
 def evaluate(db: Session, mode: Mode, sim_time: datetime) -> WardEvaluation:
     """Run the engine and return evaluation results."""
     patients = load_patients(db)
-    vitals = load_vitals(db)
+    vitals = load_vitals(db, up_to=sim_time)
     previous_tasks = load_open_tasks(db)
 
     from engine.pipeline import evaluate_ward
@@ -361,7 +364,7 @@ class SimClock:
     async def _tick_loop(self) -> None:
         """Background loop: advances sim_time and processes readings each tick."""
         sim = self._get_simulator()
-        tick_interval = 1.0  # real seconds between ticks
+        tick_interval = 0.5  # real seconds between ticks
 
         while self.running:
             try:

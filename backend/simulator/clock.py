@@ -74,8 +74,8 @@ class Simulator:
             # For Bed 7: already has scripted event at +1h; subsequent at +5h
             # For Bed 12: already has scripted crash at +5h; normal checks at +2h
             if bed_id == 7:
-                # Later check at +5.5h
-                t_check = SIM_START + timedelta(hours=5, minutes=30)
+                # Later check at +4h (deteriorating RR and HR)
+                t_check = SIM_START + timedelta(hours=4)
                 events.append(
                     VitalsIn(
                         patient_id=7,
@@ -131,8 +131,8 @@ class Simulator:
                         consciousness=Consciousness.ALERT,
                     )
                 )
-                # Next check with BP at +4h (after SIM_START + 3h)
-                t_check2 = SIM_START + timedelta(hours=4)
+                # Next check with BP at +6h (after the +5h crash demo)
+                t_check2 = SIM_START + timedelta(hours=6)
                 events.append(
                     VitalsIn(
                         patient_id=4,
