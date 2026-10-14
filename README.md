@@ -12,29 +12,51 @@ Unequivocal crash vitals bypass the queue to trigger immediate emergency clinica
 
 ## Quick Start
 
-### Backend
-1. Create and activate a Python virtual environment:
-   ```bash
-   python -m venv backend/.venv
-   # Windows PowerShell:
-   .\backend\.venv\Scripts\Activate.ps1
-   # Linux / macOS:
-   source backend/.venv/bin/activate
-   ```
-2. Install dependencies:
-   ```bash
-   pip install -r backend/requirements.txt
-   ```
-3. Start the backend server:
-   ```bash
-   cd backend
-   uvicorn app.main:app --reload --port 8000
-   ```
-   Or run the helper scripts: `./scripts/run_backend.sh` or `.\scripts\run_backend.ps1`.
-   Check health status at [http://localhost:8000/health](http://localhost:8000/health).
+### Run Everything Together (Recommended)
+```bash
+# Windows PowerShell:
+.\scripts\run_all.ps1
 
-### Frontend
-- Frontend console in React + Vite + TypeScript + Tailwind (placeholder: to be added in work package P5).
+# Linux / macOS:
+./scripts/run_all.sh
+```
+This automatically seeds the SQLite database, starts the FastAPI backend at [http://localhost:8000](http://localhost:8000), and launches the Vite React nurse console at [http://localhost:5173](http://localhost:5173).
+
+### Running Manually
+
+#### 1. Backend (FastAPI)
+```bash
+python -m venv backend/.venv
+# Windows PowerShell:
+.\backend\.venv\Scripts\Activate.ps1
+# Linux / macOS:
+source backend/.venv/bin/activate
+
+pip install -r backend/requirements.txt
+
+# Seed the database from the 20-bed ward simulator:
+cd backend
+python -m app.db.seed
+
+# Start the API server:
+uvicorn app.main:app --reload --port 8000
+```
+- API Docs: [http://localhost:8000/docs](http://localhost:8000/docs)
+- Health Check: [http://localhost:8000/health](http://localhost:8000/health)
+
+#### 2. Frontend (React + Vite + Tailwind)
+```bash
+cd frontend
+npm install
+npm run dev
+```
+- Console UI: [http://localhost:5173](http://localhost:5173)
+
+### Verifying Integration & Demo Stories
+While the backend is running, verify all three clinical scenarios:
+```bash
+python scripts/check_stories.py
+```
 
 ---
 
