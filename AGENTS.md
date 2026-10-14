@@ -29,5 +29,5 @@ WardPulse is a hackathon project: an AI early warning system for patient deterio
    - update the "Next recommended prompt" line near the top of the file.
    A different AI (a new Claude chat) will read this file to decide the next prompt, so be precise and honest, including failures.
 3. Commit in small logical commits with a prefix: `contract:` `engine:` `sim:` `eval:` `ml:` `api:` `ui:` `docs:` `chore:`. Run `git status` and `git diff` first so no stray files are committed.
-4. `git pull --rebase`, then `git push` to GitHub. If the push fails, say so clearly in your final message and in PROGRESS.md.
+4. `git pull --rebase`, then `git push` to GitHub. If the push fails, say so clearly in your final message and in PROGRESS.md. If git pull or git push does not finish within 60 seconds, or asks for credentials, stop immediately. Do not retry or wait. Tell the human 'push is stuck, please push manually from PowerShell' and continue with the next task.
 5. End your final message with: what you did, test results, anything the human must do, and the next prompt ID.
