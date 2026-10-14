@@ -1,5 +1,5 @@
 import React from 'react';
-import { Activity, Play, Pause, RotateCcw, Clock, ShieldAlert, Cpu } from 'lucide-react';
+import { Activity, Play, Pause, RotateCcw, Clock, ShieldAlert, Cpu, Sparkles, MonitorUp } from 'lucide-react';
 import { SimState } from '../types';
 import { USE_MOCK } from '../api/client';
 
@@ -7,14 +7,28 @@ interface HeaderProps {
   simState: SimState;
   onControl: (action: 'play' | 'pause' | 'reset' | 'set_speed', speed?: number) => void;
   onOpenHelp: () => void;
+  onStartDemo: () => void;
+  isProjectorMode: boolean;
+  onToggleProjectorMode: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ simState, onControl, onOpenHelp }) => {
+export const Header: React.FC<HeaderProps> = ({
+  simState,
+  onControl,
+  onOpenHelp,
+  onStartDemo,
+  isProjectorMode,
+  onToggleProjectorMode,
+}) => {
   const formatTime = (isoString: string) => {
     try {
       const d = new Date(isoString);
-      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) +
-        ' (' + d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ')';
+      return (
+        d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) +
+        ' (' +
+        d.toLocaleDateString([], { month: 'short', day: 'numeric' }) +
+        ')'
+      );
     } catch {
       return isoString;
     }
@@ -105,14 +119,41 @@ export const Header: React.FC<HeaderProps> = ({ simState, onControl, onOpenHelp 
           </button>
         </div>
 
-        {/* Clinical Info Button */}
-        <button
-          onClick={onOpenHelp}
-          className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-700 flex items-center gap-1.5 transition"
-        >
-          <ShieldAlert className="w-3.5 h-3.5 text-teal-400" />
-          <span>How it works</span>
-        </button>
+        {/* Action Group: Demo Mode, Projector, Help */}
+        <div className="flex items-center flex-wrap gap-2">
+          {/* One-Click Guided Demo Button */}
+          <button
+            onClick={onStartDemo}
+            className="text-xs bg-gradient-to-r from-teal-500 to-emerald-400 hover:from-teal-400 hover:to-emerald-300 text-slate-950 font-extrabold px-3.5 py-1.5 rounded-xl shadow-md flex items-center gap-1.5 transition active:scale-95"
+            title="Launch guided walkthrough of the 3 clinical stories"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-slate-950" />
+            <span>Guided Demo</span>
+          </button>
+
+          {/* Projector / Large Text Mode Toggle */}
+          <button
+            onClick={onToggleProjectorMode}
+            className={`text-xs px-3 py-1.5 rounded-xl border flex items-center gap-1.5 transition ${
+              isProjectorMode
+                ? 'bg-amber-400 text-slate-950 font-bold border-amber-300'
+                : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+            }`}
+            title="Toggle high-contrast projector font sizing"
+          >
+            <MonitorUp className="w-3.5 h-3.5" />
+            <span>{isProjectorMode ? 'Standard Text' : 'Projector Text'}</span>
+          </button>
+
+          {/* Clinical Info Button */}
+          <button
+            onClick={onOpenHelp}
+            className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-xl border border-slate-700 flex items-center gap-1.5 transition"
+          >
+            <ShieldAlert className="w-3.5 h-3.5 text-teal-400" />
+            <span>How it works</span>
+          </button>
+        </div>
       </div>
     </header>
   );

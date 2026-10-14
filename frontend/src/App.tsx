@@ -22,6 +22,7 @@ import {
 } from './api/client';
 import { Header } from './components/Header';
 import { ModeToggle } from './components/ModeToggle';
+import { DemoBanner, DEMO_STORIES } from './components/DemoBanner';
 import { EmergencyBanner } from './components/EmergencyBanner';
 import { ActiveCards } from './components/ActiveCards';
 import { StandbyQueue } from './components/StandbyQueue';
@@ -29,7 +30,7 @@ import { WardStrip } from './components/WardStrip';
 import { PatientDetailPanel } from './components/PatientDetailPanel';
 import { QuickVitalsModal } from './components/QuickVitalsModal';
 import { HelpModal } from './components/HelpModal';
-import { PlusCircle, RefreshCw, AlertCircle, Sparkles } from 'lucide-react';
+import { PlusCircle, RefreshCw, AlertCircle } from 'lucide-react';
 
 export const App: React.FC = () => {
   const [mode, setMode] = useState<Mode>('wardpulse');
@@ -47,6 +48,9 @@ export const App: React.FC = () => {
   const [vitalsModalOpen, setVitalsModalOpen] = useState<boolean>(false);
   const [vitalsModalBed, setVitalsModalBed] = useState<number | null>(null);
   const [helpOpen, setHelpOpen] = useState<boolean>(false);
+  const [projectorMode, setProjectorMode] = useState<boolean>(false);
+  const [demoModeActive, setDemoModeActive] = useState<boolean>(false);
+  const [currentStoryIndex, setCurrentStoryIndex] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -84,7 +88,6 @@ export const App: React.FC = () => {
   // Load Patient Detail if a bed is selected
   const loadSelectedPatient = useCallback(async (bed: number) => {
     try {
-      // In our setup, patient_id maps to bed
       const detail = await fetchPatientDetail(bed);
       setPatientDetail(detail);
     } catch (err: any) {
@@ -106,7 +109,6 @@ export const App: React.FC = () => {
     init();
 
     if (USE_MOCK) {
-      // Subscribe to mock store updates
       unsubscribeMock = mockStore.subscribe(() => {
         setSimState({ ...mockStore.simState });
         loadTasks(mode);
@@ -114,7 +116,6 @@ export const App: React.FC = () => {
         if (selectedBed) loadSelectedPatient(selectedBed);
       });
     } else {
-      // Connect to Real SSE stream
       try {
         sse = new EventSource(`${API_URL}/stream`);
         sse.addEventListener('tasks_updated', () => {
@@ -171,6 +172,31 @@ export const App: React.FC = () => {
     }
   };
 
+  // Launch Guided Demo Mode
+  const handleStartDemo = () => {
+    setDemoModeActive(true);
+    handleSelectStory(0);
+  };
+
+  // Handle Story Selection in Demo Mode
+  const handleSelectStory = async (index: number) => {
+    setCurrentStoryIndex(index);
+    const story = DEMO_STORIES[index];
+
+    if (USE_MOCK) {
+      mockStore.setMockTime(story.time);
+    } else {
+      // In live backend mode, ensure sim speed is optimal for viewing
+      await controlSim({ action: 'set_speed', speed_minutes_per_second: 15.0 });
+    }
+
+    // Inspect relevant patient bed for clear clinical demonstration
+    setSelectedBed(story.highlightBed);
+    loadSelectedPatient(story.highlightBed);
+    loadTasks(mode);
+    loadWard();
+  };
+
   // Handle Task Action (Done / Not Useful)
   const handleTaskAction = async (taskId: number, action: 'done' | 'not-useful') => {
     try {
@@ -202,16 +228,19 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col font-sans">
+    <div className={`min-h-screen bg-slate-100 flex flex-col font-sans transition-all ${projectorMode ? 'projector-mode' : ''}`}>
       {/* Top Header */}
       <Header
         simState={simState}
         onControl={handleSimControl}
         onOpenHelp={() => setHelpOpen(true)}
+        onStartDemo={handleStartDemo}
+        isProjectorMode={projectorMode}
+        onToggleProjectorMode={() => setProjectorMode(!projectorMode)}
       />
 
       {/* Main Ward Console Content */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-5">
         {/* Error message banner */}
         {error && (
           <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 text-sm font-semibold flex items-center justify-between shadow-sm">
@@ -226,6 +255,16 @@ export const App: React.FC = () => {
               Dismiss
             </button>
           </div>
+        )}
+
+        {/* Guided Demo Story Banner */}
+        {demoModeActive && (
+          <DemoBanner
+            currentStoryIndex={currentStoryIndex}
+            onSelectStory={handleSelectStory}
+            onCloseDemo={() => setDemoModeActive(false)}
+            onSelectBed={handleSelectBed}
+          />
         )}
 
         {/* Mode Toggle & Alert Reduction Counter */}
@@ -272,8 +311,11 @@ export const App: React.FC = () => {
           />
         </div>
 
-        {/* Quick Action Floating Bar */}
-        <div className="flex justify-end pt-2">
+        {/* Quick Action Bar */}
+        <div className="flex justify-between items-center pt-2">
+          <div className="text-xs text-slate-500 font-medium">
+            WardPulse Attention Engine • <span className="text-teal-700 font-semibold">20-Bed Medical Ward</span>
+          </div>
           <button
             onClick={() => {
               setVitalsModalBed(selectedBed || 1);

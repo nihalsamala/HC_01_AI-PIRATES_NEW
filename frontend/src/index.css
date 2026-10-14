@@ -2,7 +2,7 @@
 
 @layer base {
   body {
-    @apply bg-slate-50 text-slate-900 antialiased font-sans selection:bg-teal-100 selection:text-teal-900;
+    @apply bg-slate-100 text-slate-900 antialiased font-sans selection:bg-teal-100 selection:text-teal-900;
   }
 }
 
@@ -18,4 +18,32 @@
   50% {
     box-shadow: 0 0 0 6px rgba(225, 29, 72, 0);
   }
+}
+
+/* Projector / High-Visibility Stage Presentation Mode */
+.projector-mode {
+  font-size: 1.125rem; /* scale up text */
+}
+
+.projector-mode h1 {
+  font-size: 1.75rem !important;
+}
+
+.projector-mode h2 {
+  font-size: 1.4rem !important;
+}
+
+.projector-mode .active-card-title {
+  font-size: 1.25rem !important;
+}
+
+.projector-mode .bed-pill {
+  font-size: 0.95rem !important;
+  padding: 0.35rem 0.75rem !important;
+}
+
+.projector-mode .badge-counter {
+  font-size: 1.5rem !important;
+  width: 3.25rem !important;
+  height: 3.25rem !important;
 }

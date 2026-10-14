@@ -54,6 +54,14 @@ class MockStore {
     this.notify();
   }
 
+  setMockTime(isoString: string) {
+    this.simState.sim_time = isoString;
+    this.wardPulseTasks.now = isoString;
+    this.news2Tasks.now = isoString;
+    this.wardOverview.now = isoString;
+    this.notify();
+  }
+
   advanceMockClock() {
     if (!this.simState.running) return;
     const current = new Date(this.simState.sim_time);
