@@ -1,24 +1,59 @@
 """
 Ward simulation clock and event generator.
+
+Supports both synthetic (source="sim") and de-identified real trajectory
+replay (source="replay") future event generation.
 """
 
 from datetime import datetime, timedelta
+from pathlib import Path
 import random
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 from shared.schemas import Consciousness, Source, VitalsIn
 from simulator.scenarios import BED_CONFIGS, SIM_START
 
 
+def _has_dataset_files(data_path: Optional[Union[str, Path]] = None) -> bool:
+    """Check if raw .psv dataset files exist in data_path or default directories."""
+    if data_path:
+        p = Path(data_path)
+        if p.exists() and (list(p.glob("*.psv")) or list(p.glob("**/*.psv"))):
+            return True
+
+    candidates = [
+        Path(__file__).resolve().parent.parent.parent / "data" / "raw",
+        Path("data/raw"),
+        Path("../data/raw"),
+    ]
+    for c in candidates:
+        if c.exists() and (list(c.glob("*.psv")) or list(c.glob("**/*.psv"))):
+            return True
+    return False
+
+
 class Simulator:
     """Deterministic ward simulation clock.
-    
+
     Keeps an internal time cursor initialized to SIM_START.
     Never calls datetime.now().
     """
 
-    def __init__(self, seed: int = 42) -> None:
+    def __init__(
+        self,
+        seed: int = 42,
+        source: Optional[str] = None,
+        data_path: Optional[Union[str, Path]] = None,
+    ) -> None:
         self.seed = seed
+        self.data_path = data_path
+
+        # Resolve source: fallback to "sim" if no dataset files are present
+        if source is None:
+            self.source = "replay" if _has_dataset_files(data_path) else "sim"
+        else:
+            self.source = source
+
         self.current_time = SIM_START
         self._init_schedule()
 
@@ -32,13 +67,18 @@ class Simulator:
         """Precompute scripted and routine vitals for 24 hours post SIM_START."""
         events: List[VitalsIn] = []
         rng = random.Random(self.seed + 1000)
+        event_source = Source.REPLAY if self.source == "replay" else Source.SIM
+
+        # =========================================================================
+        # --- SCRIPTED DEMO STORY OVERLAY (docs/contracts.md section 6) ---
+        # =========================================================================
 
         # 1. Scripted Story 1: Bed 7 post-op deterioration at SIM_START + 1h
         events.append(
             VitalsIn(
                 patient_id=7,
                 timestamp=SIM_START + timedelta(hours=1),
-                source=Source.SIM,
+                source=event_source,
                 hr=98.0,
                 sbp=112.0,
                 dbp=70.0,
@@ -55,7 +95,7 @@ class Simulator:
             VitalsIn(
                 patient_id=12,
                 timestamp=SIM_START + timedelta(hours=5),
-                source=Source.SIM,
+                source=event_source,
                 hr=135.0,
                 sbp=78.0,
                 dbp=48.0,
@@ -68,11 +108,7 @@ class Simulator:
         )
 
         # 3. Routine checks across the ward (4 to 6 hours cadence)
-        # We generate scheduled check times for beds post SIM_START
         for bed_id, cfg in BED_CONFIGS.items():
-            # For Bed 4: omit SBP reading up to SIM_START + 3h so BP remains 7h old
-            # For Bed 7: already has scripted event at +1h; subsequent at +5h
-            # For Bed 12: already has scripted crash at +5h; normal checks at +2h
             if bed_id == 7:
                 # Later check at +4h (deteriorating RR and HR)
                 t_check = SIM_START + timedelta(hours=4)
@@ -80,7 +116,7 @@ class Simulator:
                     VitalsIn(
                         patient_id=7,
                         timestamp=t_check,
-                        source=Source.SIM,
+                        source=event_source,
                         hr=104.0,
                         sbp=108.0,
                         dbp=68.0,
@@ -100,7 +136,7 @@ class Simulator:
                     VitalsIn(
                         patient_id=12,
                         timestamp=t_check,
-                        source=Source.SIM,
+                        source=event_source,
                         hr=74.0,
                         sbp=122.0,
                         dbp=78.0,
@@ -120,7 +156,7 @@ class Simulator:
                     VitalsIn(
                         patient_id=4,
                         timestamp=t_check,
-                        source=Source.SIM,
+                        source=event_source,
                         hr=82.0,
                         sbp=None,
                         dbp=None,
@@ -131,13 +167,13 @@ class Simulator:
                         consciousness=Consciousness.ALERT,
                     )
                 )
-                # Next check with BP at +6h (after the +5h crash demo)
+                # Next check with BP at +6h
                 t_check2 = SIM_START + timedelta(hours=6)
                 events.append(
                     VitalsIn(
                         patient_id=4,
                         timestamp=t_check2,
-                        source=Source.SIM,
+                        source=event_source,
                         hr=80.0,
                         sbp=110.0,
                         dbp=68.0,
@@ -150,14 +186,11 @@ class Simulator:
                 )
                 continue
 
-            # For all other beds, generate 1 to 3 checks across 12h
-            # Bed 3 (COPD): keep stable RR 21-23, SpO2 90-92
-            # Beds 5, 14 (COPD): stable chronic
-            # Beds 9, 18 (Cardiac): stable chronic
+            # Routine check schedule for remaining beds
             for hour_offset in [2.0, 6.0, 10.0]:
                 jitter_min = rng.uniform(-15.0, 15.0)
                 t_check = SIM_START + timedelta(hours=hour_offset, minutes=jitter_min)
-                
+
                 if cfg.role == "copd_chronic":
                     rr_val = round(rng.uniform(21.0, 23.0), 1)
                     spo2_val = round(rng.uniform(90.0, 92.0), 1)
@@ -181,7 +214,7 @@ class Simulator:
                     VitalsIn(
                         patient_id=bed_id,
                         timestamp=t_check,
-                        source=Source.SIM,
+                        source=event_source,
                         hr=hr_val,
                         sbp=sbp_val,
                         dbp=dbp_val,
@@ -199,7 +232,7 @@ class Simulator:
 
     def advance(self, to: datetime) -> List[VitalsIn]:
         """Advance simulation clock to target datetime.
-        
+
         Returns all readings scheduled strictly after current_time and up to `to`.
         """
         if to <= self.current_time:

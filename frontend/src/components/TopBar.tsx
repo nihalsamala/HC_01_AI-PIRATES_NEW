@@ -88,7 +88,7 @@ export const TopBar: React.FC<TopBarProps> = ({
             Ward 3B · General Medicine &amp; Surgery
           </span>
           <span className="text-[11px] text-slate-500 leading-tight">
-            District Hospital (demo)
+            Data: replayed de-identified public records
           </span>
         </div>
       </div>

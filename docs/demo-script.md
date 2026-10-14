@@ -30,6 +30,9 @@ Before taking the stage:
 
 ## 3. The 3 Scripted Clinical Scenarios (Step-by-Step)
 
+> **Data Provenance & Scripted Story Overlays (Task P7b)**:
+> The live ward runs on replayed, de-identified patient trajectories (`source: replay` thinned to 4–6h ward intervals). To ensure reproducible evaluation for judges and evaluators, the 3 canonical deterioration scenarios (Story 1: Bed 7 post-op drift; Story 2: Bed 4 stale BP; Story 3: Bed 12 acute crash bypass) are scripted overlays onto Beds 3, 4, 7, and 12 on top of the replayed ward background, strictly per `docs/contracts.md` section 6.
+
 You can run this manually using the clock controls, or click the **"Guided Demo"** button in the header.
 
 ---
