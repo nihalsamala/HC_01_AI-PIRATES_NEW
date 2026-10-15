@@ -23,8 +23,7 @@ coverage/
 *.db
 *.sqlite
 *.sqlite3
-data/raw/*
-!data/raw/.gitkeep
+data/raw/
 
 # Trained-model scratch (commit only the final small model on purpose)
 backend/ml/checkpoints/
