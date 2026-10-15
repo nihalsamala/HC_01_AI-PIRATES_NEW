@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Mode,
   PatientDetail,
@@ -56,10 +56,20 @@ export const App: React.FC = () => {
   const [naiveAlertsCount, setNaiveAlertsCount] = useState<number>(10);
   const [wardpulseAlertsCount, setWardpulseAlertsCount] = useState<number>(2);
 
-  // Selected bed and patient details
+  // Selected bed and patient details (with ref tracking to avoid stale closures in SSE)
   const [selectedBed, setSelectedBed] = useState<number | null>(null);
+  const selectedBedRef = useRef<number | null>(null);
   const [patientDetail, setPatientDetail] = useState<PatientDetail | null>(null);
   const [patientDetailsMap, setPatientDetailsMap] = useState<Record<number, PatientDetail>>({});
+  const wardOverviewRef = useRef<WardOverview | null>(null);
+
+  useEffect(() => {
+    selectedBedRef.current = selectedBed;
+  }, [selectedBed]);
+
+  useEffect(() => {
+    wardOverviewRef.current = wardOverview;
+  }, [wardOverview]);
 
   // Modals & local state
   const [vitalsModalOpen, setVitalsModalOpen] = useState<boolean>(false);
@@ -113,11 +123,15 @@ export const App: React.FC = () => {
     }
   }, []);
 
-  // Load Patient Detail
+  // Load Patient Detail (resolves bed to patient_id and prevents race conditions)
   const loadSelectedPatient = useCallback(async (bed: number) => {
     try {
-      const detail = await fetchPatientDetail(bed);
-      setPatientDetail(detail);
+      const patientId = wardOverviewRef.current?.beds.find((b) => b.bed === bed)?.patient_id ?? bed;
+      const detail = await fetchPatientDetail(patientId);
+      // Only set active detail if this bed is still the currently selected bed
+      if (selectedBedRef.current === bed) {
+        setPatientDetail(detail);
+      }
       setPatientDetailsMap((prev) => ({ ...prev, [bed]: detail }));
     } catch (err: any) {
       console.error('Error fetching patient detail:', err);
@@ -134,7 +148,7 @@ export const App: React.FC = () => {
         loadTasks(mode),
         loadWard(),
         loadSimState(),
-        loadSelectedPatient(1),
+        selectedBedRef.current ? loadSelectedPatient(selectedBedRef.current) : Promise.resolve(),
         fetchEvalResults().then((res) => {
           if (res) setEvalResults(res);
         }),
@@ -148,7 +162,7 @@ export const App: React.FC = () => {
         setSimState({ ...mockStore.simState });
         loadTasks(mode);
         loadWard();
-        if (selectedBed) loadSelectedPatient(selectedBed);
+        if (selectedBedRef.current) loadSelectedPatient(selectedBedRef.current);
       });
     } else {
       try {
@@ -158,7 +172,7 @@ export const App: React.FC = () => {
         });
         sse.addEventListener('ward_updated', () => {
           loadWard();
-          if (selectedBed) loadSelectedPatient(selectedBed);
+          if (selectedBedRef.current) loadSelectedPatient(selectedBedRef.current);
         });
         sse.addEventListener('sim_tick', (e: MessageEvent) => {
           try {
@@ -167,6 +181,7 @@ export const App: React.FC = () => {
               setSimState(data.data);
               loadTasks(mode);
               loadWard();
+              if (selectedBedRef.current) loadSelectedPatient(selectedBedRef.current);
             }
           } catch {
             // fallback
@@ -187,7 +202,7 @@ export const App: React.FC = () => {
       if (sse) sse.close();
       if (unsubscribeMock) unsubscribeMock();
     };
-  }, [loadTasks, loadWard, loadSimState, mode, selectedBed, loadSelectedPatient]);
+  }, [loadTasks, loadWard, loadSimState, mode, loadSelectedPatient]);
 
   // Handle Mode Change
   const handleModeChange = (newMode: Mode) => {
@@ -205,7 +220,7 @@ export const App: React.FC = () => {
       setSimState(updated);
       loadTasks(mode);
       loadWard();
-      if (selectedBed) loadSelectedPatient(selectedBed);
+      if (selectedBedRef.current) loadSelectedPatient(selectedBedRef.current);
     } catch (err: any) {
       console.error('Sim control error:', err);
     }
@@ -219,6 +234,12 @@ export const App: React.FC = () => {
       const updated = await seekSim(story.fullTime);
       setSimState(updated);
       setSelectedBed(story.bed);
+      selectedBedRef.current = story.bed;
+      if (patientDetailsMap[story.bed]) {
+        setPatientDetail(patientDetailsMap[story.bed]);
+      } else {
+        setPatientDetail(null);
+      }
       await Promise.all([
         loadSelectedPatient(story.bed),
         loadTasks(mode),
@@ -237,7 +258,7 @@ export const App: React.FC = () => {
       await Promise.all([
         loadTasks(mode),
         loadWard(),
-        selectedBed ? loadSelectedPatient(selectedBed) : Promise.resolve(),
+        selectedBedRef.current ? loadSelectedPatient(selectedBedRef.current) : Promise.resolve(),
       ]);
     } catch (err: any) {
       console.error('Failed to seek timeline:', err);
@@ -254,7 +275,7 @@ export const App: React.FC = () => {
       }
       loadTasks(mode);
       loadWard();
-      if (selectedBed) loadSelectedPatient(selectedBed);
+      if (selectedBedRef.current) loadSelectedPatient(selectedBedRef.current);
     } catch (err: any) {
       console.error('Task action failed:', err);
     }
@@ -268,21 +289,30 @@ export const App: React.FC = () => {
   // Handle Selecting a Bed
   const handleSelectBed = (bed: number) => {
     setSelectedBed(bed);
+    selectedBedRef.current = bed;
+    // Show cached details immediately to avoid stale flash, or null while loading
+    if (patientDetailsMap[bed]) {
+      setPatientDetail(patientDetailsMap[bed]);
+    } else {
+      setPatientDetail(null);
+    }
     loadSelectedPatient(bed);
   };
 
   // Handle Vitals Submit
   const handleVitalsSubmit = async (vitals: VitalsIn) => {
-    await postVitals(vitals);
+    const patientId = wardOverviewRef.current?.beds.find((b) => b.bed === vitals.patient_id)?.patient_id ?? vitals.patient_id;
+    await postVitals({ ...vitals, patient_id: patientId });
     loadTasks(mode);
     loadWard();
-    if (selectedBed) loadSelectedPatient(selectedBed);
+    if (selectedBedRef.current) loadSelectedPatient(selectedBedRef.current);
   };
 
   // Handle Bedside Nurse "I'm Worried" Concern Submission
   const handleWorriedSubmit = async (bed: number, note: string) => {
     alert(`Clinical concern logged for Bed ${bed}: "${note}". Attention Engine prioritizing patient.`);
     setSelectedBed(bed);
+    selectedBedRef.current = bed;
     loadSelectedPatient(bed);
     loadTasks(mode);
     loadWard();
@@ -432,9 +462,11 @@ export const App: React.FC = () => {
       {/* Patient Detail Drawer */}
       {selectedBed && (
         <PatientDetailPanel
-          detail={patientDetail}
+          key={selectedBed}
+          detail={patientDetail && patientDetail.patient.bed === selectedBed ? patientDetail : null}
           onClose={() => {
             setSelectedBed(null);
+            selectedBedRef.current = null;
             setPatientDetail(null);
           }}
           onOpenQuickVitals={(bed) => {
