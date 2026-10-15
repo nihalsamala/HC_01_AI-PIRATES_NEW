@@ -133,6 +133,7 @@ export const App: React.FC = () => {
         loadTasks(mode),
         loadWard(),
         loadSimState(),
+        loadSelectedPatient(1),
         fetchEvalResults().then((res) => {
           if (res) setEvalResults(res);
         }),
@@ -277,9 +278,8 @@ export const App: React.FC = () => {
       : [];
   const combinedQueue = [...overflowCards, ...(tasksResponse?.queue || [])];
 
-  // Dynamically compute bed data provenance from real data / evalResults
+  // Dynamically compute bed data provenance from real data on active beds
   const isReplay = Boolean(
-    (evalResults && evalResults.dataset.toLowerCase().includes('physionet')) ||
     (patientDetail && patientDetail.recent_vitals.some((r) => r.source === 'replay')) ||
     Object.values(patientDetailsMap).some((d) => d.recent_vitals.some((r) => r.source === 'replay'))
   );
@@ -391,6 +391,7 @@ export const App: React.FC = () => {
                 evalResults={evalResults}
                 tasks={activeCardsToDisplay}
                 patientDetailsMap={patientDetailsMap}
+                isReplay={isReplay}
               />
             </div>
           )}

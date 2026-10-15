@@ -23,6 +23,7 @@ interface RightSidebarProps {
   evalResults: EvalResults | null;
   tasks?: Task[];
   patientDetailsMap?: Record<number, PatientDetail>;
+  isReplay?: boolean;
 }
 
 export const RightSidebar: React.FC<RightSidebarProps> = ({
@@ -38,6 +39,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
   evalResults,
   tasks = [],
   patientDetailsMap = {},
+  isReplay = false,
 }) => {
   // Ensure we have 20 beds represented
   const bedList = Array.from({ length: 20 }, (_, i) => {
@@ -222,7 +224,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
         {/* Dataset provenance label */}
         <div className="mt-2 text-right">
           <span className="text-[10px] text-slate-600 italic">
-            {evalResults?.dataset.toLowerCase().includes('physionet')
+            {isReplay
               ? '(PhysioNet 2019, n=1,999)'
               : '(simulated ward)'}
           </span>
