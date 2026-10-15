@@ -76,16 +76,19 @@ def get_ward(db: Session = Depends(get_db)) -> WardOverview:
 @router.get("/patients/{patient_id}")
 def get_patient(patient_id: int, db: Session = Depends(get_db)) -> PatientDetail:
     """Get patient details including recent vitals, assessment, and open tasks."""
-    patient_row = db.query(PatientRow).filter(PatientRow.id == patient_id).first()
+    patient_row = (
+        db.query(PatientRow).filter(PatientRow.id == patient_id).first()
+        or db.query(PatientRow).filter(PatientRow.bed == patient_id).first()
+    )
     if not patient_row:
         raise HTTPException(status_code=404, detail=f"Patient {patient_id} not found")
 
     patient = _row_to_patient(patient_row)
 
-    # Recent vitals (last 20 readings)
+    # Recent vitals (last 20 readings) using true patient.id
     vitals_rows = (
         db.query(VitalsRow)
-        .filter(VitalsRow.patient_id == patient_id)
+        .filter(VitalsRow.patient_id == patient.id)
         .order_by(VitalsRow.timestamp.desc())
         .limit(20)
         .all()
@@ -95,13 +98,13 @@ def get_patient(patient_id: int, db: Session = Depends(get_db)) -> PatientDetail
     # Assessment from engine
     evaluation = evaluate(db, Mode.WARDPULSE, sim_clock.sim_time)
     assessment = next(
-        (a for a in evaluation.assessments if a.patient_id == patient_id),
+        (a for a in evaluation.assessments if a.patient_id == patient.id),
         None,
     )
 
     # Open tasks
     task_rows = db.query(TaskRow).filter(
-        TaskRow.patient_id == patient_id,
+        TaskRow.patient_id == patient.id,
         TaskRow.status.in_(["active", "queued"]),
     ).all()
     open_tasks = [_row_to_task(r) for r in task_rows]
@@ -138,15 +141,18 @@ async def post_vitals(
     db: Session = Depends(get_db),
 ) -> VitalsReading:
     """Submit a vital sign reading. timestamp=None uses sim_time."""
-    # Validate patient exists
-    patient_row = db.query(PatientRow).filter(PatientRow.id == vitals_in.patient_id).first()
+    # Validate patient exists by id or bed
+    patient_row = (
+        db.query(PatientRow).filter(PatientRow.id == vitals_in.patient_id).first()
+        or db.query(PatientRow).filter(PatientRow.bed == vitals_in.patient_id).first()
+    )
     if not patient_row:
         raise HTTPException(status_code=404, detail=f"Patient {vitals_in.patient_id} not found")
 
     ts = vitals_in.timestamp if vitals_in.timestamp else sim_clock.sim_time
 
     row = VitalsRow(
-        patient_id=vitals_in.patient_id,
+        patient_id=patient_row.id,
         timestamp=ts,
         hr=vitals_in.hr,
         sbp=vitals_in.sbp,
@@ -164,7 +170,7 @@ async def post_vitals(
     db.add(AuditLogRow(
         timestamp=ts,
         event_type="vitals_entered",
-        patient_id=vitals_in.patient_id,
+        patient_id=patient_row.id,
         details={"source": vitals_in.source.value if vitals_in.source else "manual"},
     ))
 

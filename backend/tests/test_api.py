@@ -271,6 +271,41 @@ class TestPatient:
         assert data["patient"]["id"] == 1
         assert "recent_vitals" in data
 
+    def test_get_patient_multiple_ids(self, client):
+        """GET /patients/{id} returns the correct patient for several IDs (3, 7, 12)."""
+        for patient_id in [1, 3, 7, 12]:
+            r = client.get(f"/patients/{patient_id}")
+            assert r.status_code == 200
+            data = r.json()
+            assert data["patient"]["id"] == patient_id
+            assert data["patient"]["bed"] == patient_id
+            assert data["patient"]["display_name"] == f"Bed {patient_id}"
+
+    def test_get_patient_after_vitals_for_bed_1(self, client):
+        """Entering vitals for Bed 1 does not alter other patients (Beds 3, 7, 12)."""
+        # Post vitals for Bed 1
+        vitals_payload = {
+            "patient_id": 1,
+            "hr": 92.0,
+            "sbp": 125.0,
+            "dbp": 82.0,
+            "rr": 18.0,
+            "spo2": 97.0,
+            "temp": 37.1,
+            "source": "manual",
+        }
+        post_r = client.post("/vitals", json=vitals_payload)
+        assert post_r.status_code == 200
+
+        # Verify other beds still return their own data, not Bed 1
+        for other_id in [3, 7, 12]:
+            r = client.get(f"/patients/{other_id}")
+            assert r.status_code == 200
+            data = r.json()
+            assert data["patient"]["id"] == other_id
+            assert data["patient"]["bed"] == other_id
+            assert data["patient"]["display_name"] == f"Bed {other_id}"
+
     def test_get_patient_not_found(self, client):
         """GET /patients/999 returns 404."""
         r = client.get("/patients/999")
