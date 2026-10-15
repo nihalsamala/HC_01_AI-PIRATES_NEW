@@ -24,6 +24,7 @@ interface AttentionCardsProps {
   patientDetailsMap?: Record<number, PatientDetail>;
   snoozedTaskIds: number[];
   onSnoozeTask: (taskId: number) => void;
+  simTime?: string;
 }
 
 interface ParsedVital {
@@ -212,6 +213,45 @@ const getPatientLabel = (bedNum: number, wardBed?: WardBed, detail?: PatientDeta
   return label;
 };
 
+// Compute dynamic vital age chips from actual readings or wardBed data
+const getVitalsAgeChips = (detail?: PatientDetail, simTimeStr?: string, wardBed?: WardBed) => {
+  const simTime = simTimeStr ? new Date(simTimeStr).getTime() : Date.now();
+  const vitals = detail?.recent_vitals || [];
+
+  const getLatestAge = (vitalKey: 'hr' | 'sbp' | 'rr' | 'spo2' | 'temp') => {
+    for (let i = vitals.length - 1; i >= 0; i--) {
+      const r = vitals[i];
+      if (r[vitalKey] !== null && r[vitalKey] !== undefined) {
+        const readTime = new Date(r.timestamp).getTime();
+        const diffMin = Math.max(0, Math.round((simTime - readTime) / 60000));
+        let ageLabel = `${diffMin} min`;
+        let status: 'fresh' | 'due' | 'stale' = 'fresh';
+        if (diffMin >= 60) {
+          ageLabel = `${(diffMin / 60).toFixed(1)}h`;
+        }
+        if (diffMin > 360) status = 'stale';
+        else if (diffMin > 240) status = 'due';
+        return { age: ageLabel, status };
+      }
+    }
+    // Fallback if vital not yet loaded: check wardBed overall hours
+    if (wardBed && wardBed.hours_since_last_vitals !== null && wardBed.hours_since_last_vitals !== undefined) {
+      const h = wardBed.hours_since_last_vitals;
+      const status: 'fresh' | 'due' | 'stale' = h > 6 ? 'stale' : (h > 4 ? 'due' : 'fresh');
+      return { age: `${h.toFixed(1)}h`, status };
+    }
+    return { age: 'due', status: 'due' as const };
+  };
+
+  return [
+    { name: 'HR', ...getLatestAge('hr') },
+    { name: 'BP', ...getLatestAge('sbp') },
+    { name: 'RR', ...getLatestAge('rr') },
+    { name: 'SpO2', ...getLatestAge('spo2') },
+    { name: 'Temp', ...getLatestAge('temp') },
+  ];
+};
+
 export const AttentionCards: React.FC<AttentionCardsProps> = ({
   tasks,
   mode,
@@ -222,8 +262,16 @@ export const AttentionCards: React.FC<AttentionCardsProps> = ({
   patientDetailsMap = {},
   snoozedTaskIds,
   onSnoozeTask,
+  simTime,
 }) => {
   const [snoozeMenuOpen, setSnoozeMenuOpen] = useState<number | null>(null);
+  const [completingTaskId, setCompletingTaskId] = useState<number | null>(null);
+
+  const handleDone = (taskId: number) => {
+    setCompletingTaskId(taskId);
+    onAction(taskId, 'done');
+    setTimeout(() => setCompletingTaskId(null), 800);
+  };
 
   // Filter out snoozed tasks
   const visibleTasks = tasks.filter((t) => !snoozedTaskIds.includes(t.id));
@@ -381,21 +429,23 @@ export const AttentionCards: React.FC<AttentionCardsProps> = ({
                   </span>
 
                   {/* Vitals Age Chips */}
-                  {[
-                    { name: 'HR', age: '22 min', status: 'fresh' },
-                    { name: 'BP', age: '22 min', status: 'fresh' },
-                    { name: 'RR', age: '30 min', status: 'fresh' },
-                    { name: 'SpO2', age: '22 min', status: 'fresh' },
-                    { name: 'Temp', age: '22 min', status: 'fresh' },
-                  ].map((chip) => (
-                    <div
-                      key={chip.name}
-                      className="inline-flex items-center gap-1 text-slate-600 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100 font-medium"
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                      <span>{chip.name} {chip.age}</span>
-                    </div>
-                  ))}
+                  {getVitalsAgeChips(detail, simTime, wardBed).map((chip) => {
+                    const dotColor =
+                      chip.status === 'stale'
+                        ? 'bg-rose-500'
+                        : chip.status === 'due'
+                        ? 'bg-amber-500'
+                        : 'bg-emerald-500';
+                    return (
+                      <div
+                        key={chip.name}
+                        className="inline-flex items-center gap-1 text-slate-600 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100 font-medium"
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
+                        <span>{chip.name} {chip.age}</span>
+                      </div>
+                    );
+                  })}
                 </div>
 
                 {/* DO NOW Numbered List of Closed-Set Card Actions */}
@@ -437,21 +487,31 @@ export const AttentionCards: React.FC<AttentionCardsProps> = ({
                         <span>Page doctor</span>
                       </button>
                       <button
-                        onClick={() => onAction(task.id, 'done')}
-                        className="px-3.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition flex items-center gap-1.5"
+                        onClick={() => handleDone(task.id)}
+                        disabled={completingTaskId === task.id}
+                        className={`px-3.5 py-2 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 ${
+                          completingTaskId === task.id
+                            ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                            : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
+                        }`}
                       >
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>Done</span>
+                        <CheckCircle2 className={`w-3.5 h-3.5 ${completingTaskId === task.id ? 'text-emerald-700' : 'text-emerald-600'}`} />
+                        <span>{completingTaskId === task.id ? 'Done ✓' : 'Done'}</span>
                       </button>
                     </>
                   ) : (
                     <>
                       <button
-                        onClick={() => onAction(task.id, 'done')}
-                        className="flex-1 bg-purple-700 hover:bg-purple-800 text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 transition active:scale-98"
+                        onClick={() => handleDone(task.id)}
+                        disabled={completingTaskId === task.id}
+                        className={`flex-1 px-3.5 py-2 rounded-xl text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 transition active:scale-98 ${
+                          completingTaskId === task.id
+                            ? 'bg-emerald-600 text-white'
+                            : 'bg-purple-700 hover:bg-purple-800 text-white'
+                        }`}
                       >
                         <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>Done</span>
+                        <span>{completingTaskId === task.id ? 'Done ✓' : 'Done'}</span>
                       </button>
                       <button
                         onClick={() => alert(`Paged on-duty Medical Officer for Bed ${task.bed}.`)}

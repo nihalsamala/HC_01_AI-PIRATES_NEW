@@ -12,6 +12,7 @@ import {
   API_URL,
   USE_MOCK,
   controlSim,
+  seekSim,
   fetchPatientDetail,
   fetchSimState,
   fetchTasks,
@@ -162,7 +163,11 @@ export const App: React.FC = () => {
         sse.addEventListener('sim_tick', (e: MessageEvent) => {
           try {
             const data = JSON.parse(e.data);
-            if (data.data) setSimState(data.data);
+            if (data.data) {
+              setSimState(data.data);
+              loadTasks(mode);
+              loadWard();
+            }
           } catch {
             // fallback
           }
@@ -210,16 +215,33 @@ export const App: React.FC = () => {
   const handleSelectStory = async (story: DemoStory) => {
     setActiveStoryId(story.id);
 
-    if (USE_MOCK) {
-      mockStore.setMockTime(story.fullTime);
-    } else {
-      await controlSim({ action: 'set_speed', speed_minutes_per_second: 15.0 });
+    try {
+      const updated = await seekSim(story.fullTime);
+      setSimState(updated);
+      setSelectedBed(story.bed);
+      await Promise.all([
+        loadSelectedPatient(story.bed),
+        loadTasks(mode),
+        loadWard(),
+      ]);
+    } catch (err: any) {
+      console.error('Failed to seek story:', err);
     }
+  };
 
-    setSelectedBed(story.bed);
-    loadSelectedPatient(story.bed);
-    loadTasks(mode);
-    loadWard();
+  // Handle Free Scrubber Seek along the Shift Timeline
+  const handleSeekTime = async (isoString: string) => {
+    try {
+      const updated = await seekSim(isoString);
+      setSimState(updated);
+      await Promise.all([
+        loadTasks(mode),
+        loadWard(),
+        selectedBed ? loadSelectedPatient(selectedBed) : Promise.resolve(),
+      ]);
+    } catch (err: any) {
+      console.error('Failed to seek timeline:', err);
+    }
   };
 
   // Handle Task Completion or Dismissal
@@ -363,6 +385,7 @@ export const App: React.FC = () => {
                   patientDetailsMap={patientDetailsMap}
                   snoozedTaskIds={snoozedTaskIds}
                   onSnoozeTask={handleSnoozeTask}
+                  simTime={simState.sim_time}
                 />
 
                 {/* Standby Queue (Visible in WardPulse mode when cards wait) */}
@@ -403,6 +426,7 @@ export const App: React.FC = () => {
         simState={simState}
         activeStoryId={activeStoryId}
         onSelectStory={handleSelectStory}
+        onSeekTime={handleSeekTime}
       />
 
       {/* Patient Detail Drawer */}

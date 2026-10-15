@@ -202,6 +202,18 @@ export async function controlSim(control: SimControl): Promise<SimState> {
   return res.json();
 }
 
+export async function seekSim(targetIso: string): Promise<SimState> {
+  if (USE_MOCK) {
+    mockStore.setMockTime(targetIso);
+    return Promise.resolve(mockStore.simState);
+  }
+  const res = await fetch(`${API_URL}/sim/seek?target_time=${encodeURIComponent(targetIso)}`, {
+    method: 'POST',
+  });
+  if (!res.ok) throw new Error(`Failed to seek sim: ${res.statusText}`);
+  return res.json();
+}
+
 export async function fetchEvalResults(): Promise<EvalResults | null> {
   if (USE_MOCK) {
     return Promise.resolve(null);

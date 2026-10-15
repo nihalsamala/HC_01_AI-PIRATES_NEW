@@ -52,7 +52,10 @@ export const TopBar: React.FC<TopBarProps> = ({
       if (h >= 7 && h < 15) shift = 'day shift';
       else if (h >= 15 && h < 23) shift = 'evening shift';
 
-      shiftLabel = `Day 2 · ${shift}`;
+      const startMs = new Date('2026-10-20T00:00:00').getTime();
+      const currentMs = d.getTime();
+      const dayNum = Math.max(1, Math.floor((currentMs - startMs) / 86400000) + 1);
+      shiftLabel = `Day ${dayNum} · ${shift}`;
     }
   } catch {
     // fallback
@@ -88,9 +91,6 @@ export const TopBar: React.FC<TopBarProps> = ({
         <div className="hidden xl:flex flex-col border-l border-slate-200 pl-4 py-0.5">
           <span className="text-xs font-bold text-slate-800 leading-tight">
             Ward 3B · General Medicine &amp; Surgery
-          </span>
-          <span className="text-[11px] text-slate-500 leading-tight">
-            {dataSourceLabel || 'Beds: simulated ward'}
           </span>
         </div>
       </div>
