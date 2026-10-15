@@ -21,7 +21,7 @@ from engine.news2 import news2_components, news2_score
 from engine.safety import check_red_lines, is_crash
 
 # Machine Learning blending parameters (P8)
-ENABLE_ML: bool = False  # Off by default per safety requirement
+ENABLE_ML: bool = True  # Activated: blends 70% rule-based + 30% LightGBM inference
 ML_WEIGHT: float = 0.30
 RULE_WEIGHT: float = 0.70
 
