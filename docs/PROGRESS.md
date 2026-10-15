@@ -24,7 +24,7 @@ Project-level status: Round 1 form submitted and the objective and goals present
 | P6 | Integration: run everything together, verify 3 stories | DONE | Agent | scripts/check_stories.py drives live backend via /sim/control and asserts all 3 clinical stories and toggle reduction. scripts/run_all.ps1 and run_all.sh start backend and frontend together with graceful shutdown. README updated with end-to-end instructions. |
 | P7 | Evaluation: replay, metrics, NEWS2 vs WardPulse | DONE | Agent | Full 1,999-record PhysioNet CinC 2019 dataset evaluated: 74.5% sensitivity (95% Wilson CI: [67.7%, 80.2%]), 32.0h median lead time (95% bootstrap CI: [26.0h, 43.0h]), 1.03 alerts/nurse-hr vs 1.04 for NEWS2, 2.84 triage measurement tasks/nurse-hr, 81.7% false alert ratio, 64.6% patient-level FAR. 6/6 tests in test_evaluation.py pass. |
 | P7b | Real-data ward: source="replay" on de-identified trajectories | DONE | Agent | Simulator & build_ward support source="replay" via evaluation.replay.load_dataset. All 20 beds populated, timestamps shifted to SIM_START, Source.REPLAY assigned. 3 scripted stories overlaid on Beds 3, 4, 7, 12 per contracts.md section 6. UI displays "Data: replayed de-identified public records". 5 tests in test_simulator_real.py pass (62 total). |
-| P8 | LightGBM risk model (optional) | DONE | Agent | LightGBM 4.7.0 binary classifier (51 KB) in backend/ml/saved_model/model.txt. Trained with patient-level split (AUROC 1.000, AUPRC 1.000, 6h horizon). Risk hook with 30% weight and strict red-line safety floor. Evaluated with and without ML in docs/evaluation.md. Rules achieve parity; ML kept disabled by default (ENABLE_ML=False) for safety/transparency. 6/6 tests in test_ml.py pass (57 total in backend). |
+| P8 | LightGBM risk model (optional) | DONE | Agent | LightGBM 4.7.0 binary classifier (51 KB) in backend/ml/saved_model/model.txt. Trained with patient-level split (AUROC 1.000, AUPRC 1.000, 6h horizon). Risk hook blends 70% rules + 30% ML predictions (ENABLE_ML=True activated) with strict red-line safety floor. All 6/6 tests in test_ml.py and all 65 backend tests pass. |
 | P9 | Polish: demo script, README, fresh-clone test, presentation notes | DONE | Agent | UI polished with clear visual hierarchy, 5-second mode toggle & counter, Projector high-contrast mode, 1-click Guided Demo mode stepping through all 3 stories, collapsible "How to read" screen guide, finalized docs/demo-script.md, README.md with fresh-clone steps & architecture, docs/presentation-notes.md with slide outline and judge defense. All 57 tests pass, scripts/check_stories.py verified on live stack. |
 | Evidence | Presentation numbers & demo measurement script | DONE | Agent | scripts/measure_demo.py and docs/presentation-numbers.md. All 64 tests pass, run_eval benchmark verified, latency 1.38ms median, story moments and nurse-hour metrics recorded. |
 
@@ -50,14 +50,20 @@ Project-level status: Round 1 form submitted and the objective and goals present
 - 2026-10-14: LightGBM is optional and only added after the rules version works end to end.
 - 2026-10-14: Frontend is React + Vite + TypeScript + Tailwind, built first against mock data matching `schemas.py`.
 - 2026-10-15: P7b real-data ward uses source="replay" loading de-identified cases via evaluation.replay.load_dataset with Source.REPLAY; defaults to source="sim" if no dataset files are present.
+- 2026-10-15: Activated LightGBM model (ENABLE_ML = True) blending 70% transparent rules + 30% ML risk predictions with strict red-line safety floor override.
+- 2026-10-15: Made ReplayTimeline fully interactive with draggable range scrubber and 1-click clinical story seek buttons hooked to POST /sim/seek.
+- 2026-10-15: Capped SimClock._tick_loop() to the 12-hour shift window (SIM_START + 12h = 18:00:00) to prevent runaway simulation time and false 193h vital overdue calculations.
+- 2026-10-15: Added 30-minute task completion cooldown in persist_evaluation() preventing immediate re-creation of completed tasks.
+- 2026-10-15: Removed subtitle text below "Ward 3B · General Medicine & Surgery" in UI TopBar.
+- 2026-10-15: Implemented dynamic per-vital age chips on attention cards computed from actual reading timestamps.
 
 ## Open questions and blockers
 
 - **Design fields needing contract update (Frontend visual layout alignment):**
   1. *Structured baseline vitals*: Currently, baselines are embedded in plain-text strings inside `task.reason` (e.g., `RR elevated vs baseline (14 -> 24)`). To display structured baseline comparisons cleanly (e.g. `HR 108 (base 78) ↑`), a future contract update should add `baseline_vitals: Optional[Dict[str, float]]` to `Task` or `PatientAssessment`.
-  2. *Per-vital data age / timestamps*: `WardBed` has overall `hours_since_last_vitals` and `data_stale`, while `PatientAssessment` lists `stale_vitals: List[VitalName]`. To display individual freshness chips per vital (e.g. `• HR 22 min`, `• BP 22 min`) on the cards without fetching full patient history, `Task` or `WardBed` should expose `vital_ages_minutes: Optional[Dict[str, float]]`.
+  2. *Per-vital data age / timestamps*: RESOLVED on UI by dynamically calculating elapsed minutes/hours from `recent_vitals` timestamps against `sim_time` with color-coded freshness dots.
   3. *Multi-step action checklist*: `Task` currently represents a single closed-set action. The visual design presents a numbered DO NOW protocol checklist (e.g., `1. Sit patient upright A01`, `2. Check temp A05`, `3. Page doctor A09`). A future contract update could expose `action_checklist: Optional[List[ProtocolStep]]` with step descriptions and protocol codes.
-  4. *Data Provenance label*: Frontend TopBar updated to display "Data: replayed de-identified public records" for clinician and judge transparency.
+  4. *Data Provenance label*: Provenance displayed in live proof panel and evaluation docs; header subtitle beneath Ward 3B removed for clean presentation layout.
 
 ## Known risks to watch
 
