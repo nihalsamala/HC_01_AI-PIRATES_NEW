@@ -73,9 +73,9 @@ def build_ward(
     Returns:
       Tuple of (patients, readings) covering 20 beds and 24h prior history ending at SIM_START.
     """
-    # 1. Resolve source mode: fallback to "sim" if no dataset files are present
+    # 1. Resolve source mode: default to "sim", or "replay" when requested
     if source is None:
-        source = "replay" if _has_dataset_files(data_path) else "sim"
+        source = "sim"
 
     if source == "replay":
         return _build_ward_replay(seed=seed, data_path=data_path)

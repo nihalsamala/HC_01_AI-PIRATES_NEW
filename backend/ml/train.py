@@ -112,7 +112,7 @@ def train(
     target_path = Path(data_path) if data_path else raw_dir
 
     psv_files = list(target_path.glob("*.psv")) if target_path.exists() else []
-    if psv_files:
+    if psv_files and (data_path is not None or n_synthetic_cases == 50):
         print(f"Loading {len(psv_files)} cases from {target_path}...")
         cases = load_dataset(target_path)
     else:
@@ -147,6 +147,10 @@ def train(
     train_data = lgb.Dataset(X_train_np, label=y_train_np, feature_name=FEATURE_NAMES)
     test_data = lgb.Dataset(X_test_np, label=y_test_np, reference=train_data, feature_name=FEATURE_NAMES)
 
+    pos_count = max(1, int(sum(y_train_np)))
+    neg_count = max(1, len(y_train_np) - pos_count)
+    scale_weight = float(neg_count / pos_count)
+
     # Compact hyperparameter configuration to keep model file small (< 50KB)
     params = {
         "objective": "binary",
@@ -156,6 +160,7 @@ def train(
         "max_depth": 4,
         "learning_rate": 0.05,
         "min_child_samples": 4,
+        "scale_pos_weight": scale_weight,
         "feature_fraction": 0.9,
         "bagging_fraction": 0.8,
         "bagging_freq": 1,

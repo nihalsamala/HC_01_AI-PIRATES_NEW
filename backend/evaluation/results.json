@@ -2,7 +2,7 @@
   "dataset": "WardPulse Synthetic Ward Cohort (Fallback)",
   "sampling_interval_hours": 4.0,
   "n_patients": 50,
-  "generated_at": "2026-10-15T04:54:45.539552",
+  "generated_at": "2026-10-15T07:35:22.239573",
   "systems": [
     {
       "system": "wardpulse",
