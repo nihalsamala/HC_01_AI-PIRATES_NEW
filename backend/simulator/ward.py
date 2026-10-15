@@ -73,9 +73,9 @@ def build_ward(
     Returns:
       Tuple of (patients, readings) covering 20 beds and 24h prior history ending at SIM_START.
     """
-    # 1. Resolve source mode: default to "sim", or "replay" when requested
+    # 1. Resolve source mode: default to "replay" when raw dataset files exist, otherwise "sim"
     if source is None:
-        source = "sim"
+        source = "replay" if _has_dataset_files(data_path) else "sim"
 
     if source == "replay":
         return _build_ward_replay(seed=seed, data_path=data_path)
@@ -457,11 +457,10 @@ def _build_ward_replay(
                     continue
 
                 # Respect deliberately missed reading slots
-                if bed == 8 and slot_idx == 2:
-                    continue
-                if bed == 15 and slot_idx == 3:
-                    continue
-                if bed == 19 and slot_idx == 4:
+                if any(
+                    bed == m["bed"] and abs((shifted_time - m["scheduled_time"]).total_seconds()) < 1800
+                    for m in DELIBERATELY_MISSED_READINGS
+                ):
                     continue
 
                 readings.append(

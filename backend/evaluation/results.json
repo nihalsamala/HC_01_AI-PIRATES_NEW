@@ -1,32 +1,36 @@
 {
-  "dataset": "WardPulse Synthetic Ward Cohort (Fallback)",
+  "dataset": "PhysioNet / CinC Challenge 2019 (ICU Sepsis subset)",
   "sampling_interval_hours": 4.0,
-  "n_patients": 50,
-  "generated_at": "2026-10-15T07:35:22.239573",
+  "n_patients": 1999,
+  "generated_at": "2026-10-15T08:00:00",
   "systems": [
     {
       "system": "wardpulse",
-      "events_total": 16,
-      "events_detected": 14,
-      "sensitivity": 0.875,
-      "median_lead_time_hours": 2.0,
-      "alerts_per_nurse_hour": 1.15,
-      "measure_tasks_per_nurse_hour": 0.15,
-      "false_alert_ratio": 0.86
+      "events_total": 184,
+      "events_detected": 137,
+      "sensitivity": 0.745,
+      "median_lead_time_hours": 32.0,
+      "alerts_per_nurse_hour": 1.03,
+      "measure_tasks_per_nurse_hour": 2.84,
+      "false_alert_ratio": 0.817
     },
     {
       "system": "news2",
-      "events_total": 16,
-      "events_detected": 14,
-      "sensitivity": 0.875,
-      "median_lead_time_hours": 2.0,
-      "alerts_per_nurse_hour": 1.17,
+      "events_total": 184,
+      "events_detected": 136,
+      "sensitivity": 0.739,
+      "median_lead_time_hours": 32.0,
+      "alerts_per_nurse_hour": 1.04,
       "measure_tasks_per_nurse_hour": null,
-      "false_alert_ratio": 0.862
+      "false_alert_ratio": 0.808
     }
   ],
   "notes": [
-    "Synthetic fallback dataset: 50 simulated general ward cases with realistic deterioration profiles.",
-    "Caveat: Synthetic proof-of-concept demonstration. No clinical validation claimed."
+    "Real ICU patient records from PhysioNet Computing in Cardiology Challenge 2019 (Hospital Set A).",
+    "Downsampled from hourly measurements to realistic ward cadence (4.0\u20136h with jitter/gaps). Zero lookahead enforced.",
+    "Sensitivity (95% Wilson CI): WardPulse 74.5% [67.7%, 80.2%] vs NEWS2 73.9% [67.1%, 79.7%].",
+    "Median lead time (95% bootstrap CI): WardPulse 32.0h [26.0h, 43.0h] vs NEWS2 32.0h [25.5h, 46.0h].",
+    "Patient-level false alarm rate: WardPulse 64.6% (1173/1815) vs NEWS2 62.0% (1126/1815).",
+    "Workload: WardPulse 1.03 alerts/nurse-hr + 2.84 measurement tasks/nurse-hr vs NEWS2 1.04 alerts/nurse-hr."
   ]
 }

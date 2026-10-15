@@ -75,11 +75,27 @@ def parse_psv_patient(
             spo2 = _parse_float(parts[col_idx["O2Sat"]]) if "O2Sat" in col_idx else None
             temp = _parse_float(parts[col_idx["Temp"]]) if "Temp" in col_idx else None
 
+            # Sanitize unphysical sensor artifacts to None matching VitalsBase schema bounds
+            if hr is not None and not (0 <= hr <= 300):
+                hr = None
+            if sbp is not None and not (0 <= sbp <= 300):
+                sbp = None
+            if dbp is not None and not (0 <= dbp <= 200):
+                dbp = None
+            if sbp is not None and dbp is not None and sbp < dbp:
+                sbp, dbp = None, None
+            if rr is not None and not (0 <= rr <= 80):
+                rr = None
+            if spo2 is not None and not (0 <= spo2 <= 100):
+                spo2 = None
+            if temp is not None and not (25.0 <= temp <= 45.0):
+                temp = None
+
             # Age
             if "Age" in col_idx:
                 raw_age = _parse_float(parts[col_idx["Age"]])
                 if raw_age is not None and not math.isnan(raw_age):
-                    age = int(round(raw_age))
+                    age = max(0, min(120, int(round(raw_age))))
 
             # SepsisLabel: in PhysioNet Challenge 2019, SepsisLabel is 1 starting 6 hours before
             # the clinical onset time t_sepsis. Thus clinical event_time = timestamp + 6h.
@@ -175,7 +191,7 @@ def downsample_readings(
 def load_dataset(
     path: str | Path,
     sampling_interval_hours: float = 4.0,
-    max_cases: int = 100,
+    max_cases: Optional[int] = None,
 ) -> list[ReplayCase]:
     """Load and downsample patient cases from PhysioNet challenge directory.
     
@@ -193,11 +209,16 @@ def load_dataset(
         psv_files = list(path_obj.glob("**/*.psv")) if path_obj.exists() else []
 
     if not psv_files:
-        return generate_synthetic_cases(n_cases=min(50, max_cases))
+        n_synth = min(50, max_cases) if max_cases is not None else 50
+        return generate_synthetic_cases(n_cases=n_synth)
+
+    # Deterministic alphabetical sort across platforms
+    psv_files = sorted(psv_files, key=lambda p: p.name)
+
+    if max_cases is not None:
+        psv_files = psv_files[:max_cases]
 
     cases: list[ReplayCase] = []
-    psv_files = psv_files[:max_cases]
-
     for pid, psv_file in enumerate(psv_files, start=1):
         patient, hourly_rows, event_time = parse_psv_patient(psv_file, pid)
         readings = downsample_readings(hourly_rows, pid, sampling_interval_hours, seed=42)
