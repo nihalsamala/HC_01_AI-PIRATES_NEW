@@ -51,18 +51,18 @@ This guide prepares the presentation team for the final hackathon pitch, slide d
 
 ### Slide 6: Rigorous Quantitative Evaluation
 - **Visual:** The Comparative Benchmark Table (from `docs/evaluation.md`).
-- **Real Numbers to Cite:**
-  - **Full Clinical Sensitivity Parity:** **87.5%** (14 of 16 events detected, matching NEWS2 with zero missed collapses).
-  - **Bedside Intervention Lead Time:** **2.0 hours median lead time** before acute event.
-  - **Proactive Triage:** **0.15 measurement tasks/nurse-hour** scheduled to resolve ambiguous trajectories.
-  - **Cognitive Load Reduction:** Drops active shift demands from **11 simultaneous alarms down to 2 prioritized cards (-73% reduction)**.
+- **Real Numbers to Cite (PhysioNet CinC 2019, n=1,999 cases):**
+  - **Full Clinical Sensitivity Parity:** **74.5%** (137/184 events detected; 95% Wilson CI: [67.7%, 80.2%]), matching NEWS2 (73.9%, 136/184; [67.1%, 79.7%]).
+  - **Bedside Intervention Lead Time:** **32.0 hours median lead time** before documented sepsis event (95% bootstrap CI: [26.0h, 43.0h]).
+  - **Proactive Triage:** **2.84 measurement tasks/nurse-hour** scheduled to resolve ambiguous vital trajectories.
+  - **Cognitive Load Reduction (SIMULATED):** Drops active shift demands from an average of **3.18 alarms down to 1.68 budgeted cards (-47.0% load reduction)**.
 
 ---
 
 ### Slide 7: Ethical AI, Clinical Disclosures & Limitations
 - **Key Points:**
   - **Decision support only:** Augments nursing judgment, never diagnoses.
-  - **Domain shift honesty:** Public datasets originate in ICUs; general ward cadence requires 4–6h downsampling.
+  - **Domain shift honesty:** Public datasets originate in ICUs; general ward cadence requires ~4h downsampling.
   - **Proof of concept:** Hackathon innovation prototype; not FDA/CE cleared.
 - **Speaker Script:**
   > *"We don't claim autonomous medicine. WardPulse is an intelligent workflow assistant designed to keep nurses calm, organized, and focused on the bedside actions that save lives."*
@@ -101,7 +101,7 @@ This guide prepares the presentation team for the final hackathon pitch, slide d
 
 ### Q4: "You trained an optional LightGBM model. Why is it turned off by default?"
 - **Honest Engineering Answer:**
-  > *"We built and validated a 51 KB LightGBM model (`AUROC = 1.000` on patient-split test data). However, when we ran our full comparative evaluation, we found that transparent rule-based features—baseline z-scores, trend slopes, and shock index—already achieved optimal sensitivity (87.5%) and lead time (2.0h). Blending the ML model added computational opacity without improving nurse workflow. In healthcare AI, if an opaque model does not measurably outperform an explainable, deterministic rule engine, explainability must win."*
+  > *"The LightGBM model and its 1.000 AUROC metric came strictly from our synthetic cohort—they are **synthetic cohort results, not evidence of real-world accuracy**. When we benchmarked on real clinical records, transparent rule-based features—baseline z-scores, trend slopes, and shock index—already achieved full sensitivity parity (74.5% vs 73.9%) and identical 32.0h lead time. Because an opaque tree model adds computational opacity without measurable lead time improvement, our ML hook is **disabled by default (`ENABLE_ML = False`)**. In clinical AI, explainability and transparency must win."*
 
 ---
 
@@ -121,10 +121,20 @@ This guide prepares the presentation team for the final hackathon pitch, slide d
 
 | Fact / Metric | Exact Value | Context to Mention |
 | :--- | :---: | :--- |
-| **Sensitivity** | **87.5%** | Matches standard NEWS2; zero safety compromises |
-| **Median Lead Time** | **2.0 hours** | Meaningful bedside rescue window prior to collapse |
+| **Sensitivity** | **74.5%** (137/184) | 95% Wilson CI: [67.7%, 80.2%]; PhysioNet CinC 2019, $n=1,999$ |
+| **Median Lead Time** | **32.0 hours** | 95% bootstrap CI: [26.0h, 43.0h]; identical to NEWS2 |
 | **Attention Budget** | **$K = 2$ cards** | Focuses nurse on top immediate demands for next 15 min |
-| **Alert Reduction** | **-73%** | Drops shift peak demands from 11 simultaneous alarms to 2 |
+| **On-Screen Load Drop** | **-47.0%** | SIMULATED: drops 6h demo shift mean from 3.18 to 1.68 cards |
 | **Emergency Bypass** | **Instant** | Unequivocal collapse bypasses budget into Emergency Banner |
-| **Model Size** | **51 KB** | LightGBM binary classifier (kept off by default for transparency) |
-| **Backend Tests** | **57 / 57 passing** | Full pytest coverage across API, engine, simulator, eval, and ML |
+| **Model Status** | **Disabled** | Synthetic cohort only, not evidence of accuracy (`ENABLE_ML = False`) |
+| **Backend Tests** | **65 / 65 passing** | Full pytest coverage across API, engine, simulator, eval, and ML |
+
+---
+
+## 4. Citation & Public Dataset Attribution
+
+Public evaluation records derived from the PhysioNet Challenge 2019:
+> **Citation:**
+> Reyna, M. A., Josef, C., Jeter, R., Shashikumar, S. P., Westover, M. B., Nemati, S., Clifford, G. D., & Sharma, A. (2019). Early Detection of Sepsis from Clinical Data: The PhysioNet/Computing in Cardiology Challenge 2019. *Critical Care Medicine*, 48(2), e74–e81. https://doi.org/10.13026/v64v-d857.
+> Distributed under Creative Commons Attribution 4.0 International (CC BY 4.0).
+

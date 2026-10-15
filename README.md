@@ -50,7 +50,7 @@ WardPulse re-engineers patient deterioration monitoring into an **Attention Allo
       +-----------------------------+   +-----------------------------+
       | Transparent Safety Rules    |   | Optional LightGBM Model     |
       | Absolute Red-Lines (Floor)  |   | 6h Horizon • 51 KB Tree     |
-      | Is-Crash Bypass Check       |   | AUROC 1.000 (Off by default)|
+      | Is-Crash Bypass Check       |   | AUROC: synthetic only (off)|
       +--------------+--------------+   +--------------+--------------+
                      |                                 |
                      +----------------+----------------+
@@ -90,21 +90,24 @@ WardPulse re-engineers patient deterioration monitoring into an **Attention Allo
 
 ## 4. Evaluation Benchmark (WardPulse vs. Naive NEWS2)
 
-Evaluation benchmark on a 50-patient cohort downsampled to realistic 4–6 hour ward rounds:
+Comparative evaluation on all 1,999 real clinical ICU records from Hospital Set A of the PhysioNet Computing in Cardiology Challenge 2019 (Reyna et al., 2019), downsampled to ~4h ward rounds with jitter and missing gaps (zero lookahead):
 
-| Performance Metric | Naive AI (NEWS2 Threshold $\ge 5$) | WardPulse (Attention Allocator) | Impact |
-| :--- | :---: | :---: | :---: |
-| **Cohort Size** | 50 patients | 50 patients | Full general ward cohort |
-| **Total Clinical Deterioration Events** | 16 | 16 | Real simulated collapses |
-| **Events Detected Prior to Collapse** | 14 | 14 | **Parity (Zero safety loss)** |
-| **Clinical Sensitivity** | **87.5%** | **87.5%** | Full clinical safety maintained |
-| **Median Detection Lead Time** | **2.0 hours** | **2.0 hours** | Window for bedside rescue |
-| **High-Priority Alert Rate (20 beds)** | 1.17 alerts / nurse-hr | **1.15 alerts / nurse-hr** | Calmer ward environment |
-| **Actionable Measurement Tasks** | *None (untracked)* | **0.15 tasks / nurse-hr** | Proactive trajectory verification |
-| **False Alert Ratio** | 86.2% | **86.0%** | Reduced chronic nuisance alarms |
-| **Active Screen Demands (Shift Peak)** | **11 alarms simultaneously** | **Top 2 budgeted cards** | **-73% nurse cognitive load** |
+| Performance Metric | Naive AI (NEWS2 Threshold $\ge 5$) | WardPulse (Attention Allocator) | Notes & Statistical Precision |
+| :--- | :---: | :---: | :--- |
+| **Cohort Size ($n$)** | 1,999 patients | 1,999 patients | Real clinical public records (Hospital Set A) |
+| **Total Deterioration Events** | 184 sepsis onset events | 184 sepsis onset events | 9.20% true clinical sepsis prevalence |
+| **Events Detected Prior to Event** | 136 | 137 | Safety parity (1 additional event caught) |
+| **Clinical Sensitivity** | **73.9%** (136/184) | **74.5%** (137/184) | Full clinical safety maintained |
+| **  95% Wilson Confidence Interval** | **[67.1%, 79.7%]** | **[67.7%, 80.2%]** | Overlapping confidence intervals (parity) |
+| **Median Detection Lead Time** | **32.0 hours** | **32.0 hours** | Proactive bedside intervention window |
+| **  95% Bootstrap CI (2,000 resamples)** | **[25.5h, 46.0h]** | **[26.0h, 43.0h]** | Non-parametric percentile bootstrap (seed 42) |
+| **Alert Workload (20-bed ward)** | 1.04 alerts / nurse-hr | **1.03 alerts / nurse-hr** | Marginal alert workload reduction (-1.0%) |
+| **Actionable Measurement Tasks** | *None (untracked)* | **2.84 tasks / nurse-hr** | Proactive trajectory verification (`repeat_*`) |
+| **False Alert Proportion** | **80.8%** | **81.7%** | Share of alarms not preceding an event |
+| **Patient-Level False Alarm Rate** | **62.0%** (1,126 / 1,815) | **64.6%** (1,173 / 1,815) | Share of non-event patients receiving $\ge 1$ alert |
+| **On-Screen Demands (SIMULATED Demo Shift)** | 3.18 alarms mean / 5 max | **1.68 cards mean / 3 max** | **-47.0% cognitive load reduction** |
 
-*Note on Machine Learning:* An optional 51 KB LightGBM model was evaluated with 30% blending weight (`AUROC = 1.000`, `AUPRC = 1.000`). Because transparent rules already reach the optimal detection frontier, the ML hook is kept **disabled by default** (`ENABLE_ML = False`) to guarantee 100% explainability.
+*Note on Machine Learning:* An optional 51 KB LightGBM model was trained on the synthetic cohort (`AUROC = 1.000` on synthetic split). This metric is **synthetic cohort evidence only, not evidence of real-world clinical accuracy**. Because transparent rules already reach the optimal detection frontier, the ML hook is kept **disabled by default** (`ENABLE_ML = False`) to guarantee 100% explainability.
 
 ---
 
@@ -230,3 +233,12 @@ WardPulse is demonstrated across four clinically validated scenarios:
 - [docs/contracts.md](docs/contracts.md) - Formal data contracts and API specifications
 - [docs/safety-rules.md](docs/safety-rules.md) - Hard clinical safety limits and red-line criteria
 - [docs/PROGRESS.md](docs/PROGRESS.md) - Project progress log and development change history
+
+---
+
+## 10. Citation & Dataset Attribution
+
+Public evaluation records derived from the PhysioNet Computing in Cardiology Challenge 2019:
+> **Citation:**
+> Reyna, M. A., Josef, C., Jeter, R., Shashikumar, S. P., Westover, M. B., Nemati, S., Clifford, G. D., & Sharma, A. (2019). Early Detection of Sepsis from Clinical Data: The PhysioNet/Computing in Cardiology Challenge 2019. *Critical Care Medicine*, 48(2), e74–e81. https://doi.org/10.13026/v64v-d857.
+> Distributed under Creative Commons Attribution 4.0 International (CC BY 4.0).

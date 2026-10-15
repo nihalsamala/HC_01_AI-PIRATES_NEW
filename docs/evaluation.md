@@ -93,76 +93,77 @@ The evaluation loop processes observations sequentially in strict chronological 
 
 ## 5. Comparative Results
 
-### 5.1 Real-World Benchmark: PhysioNet CinC 2019 Sepsis Cohort (100 Patients, ~4h Cadence)
+### 5.1 Real-World Benchmark: PhysioNet CinC 2019 Sepsis Cohort (All 1,999 Patients, ~4h Cadence)
 
-Executed on 100 de-identified real ICU records from the PhysioNet Computing in Cardiology Challenge 2019 thinned to general ward cadence:
+Executed on all 1,999 de-identified real clinical records from Hospital Set A of the PhysioNet Computing in Cardiology Challenge 2019 (Reyna et al., 2019, doi:10.13026/v64v-d857, CC BY 4.0), downsampled to general ward cadence (~4h intervals with jitter and missing data):
 
-| Performance Metric | Naive AI (Standard NEWS2) | WardPulse (Attention Allocator) | Relative Advantage |
-| :--- | :---: | :---: | :---: |
-| **Cohort Size** | 100 real ICU patients | 100 real ICU patients | Real clinical public records |
-| **Total Deterioration Events** | 14 sepsis onset events | 14 sepsis onset events | Documented clinical sepsis |
-| **Events Detected** | 9 | 9 | Identical detection safety |
-| **Clinical Sensitivity** | **64.3%** (9/14) | **64.3%** (9/14) | Parity with standard score |
-| **Median Lead Time** | **15.0 hours** | **15.0 hours** | Long proactive intervention window |
-| **Alert Rate (20 beds)** | 0.98 alerts / nurse-hr | **0.97 alerts / nurse-hr** | Marginal alert reduction |
-| **Measurement Tasks** | *None (untracked)* | **3.13 tasks / nurse-hr** | Actionable repeat-vitals prompts |
-| **False Alert Proportion** | 71.8% | **73.8%** | Triage tasks prevent missed drift |
+| Performance Metric | Naive AI (Standard NEWS2) | WardPulse (Attention Allocator) | Notes & Statistical Precision |
+| :--- | :---: | :---: | :--- |
+| **Cohort Size ($n$)** | 1,999 patients | 1,999 patients | Full Hospital Set A cohort |
+| **Total Deterioration Events** | 184 sepsis onset events | 184 sepsis onset events | 9.20% true sepsis prevalence |
+| **Events Detected** | 136 | 137 | Safety parity (1 additional event caught) |
+| **Clinical Sensitivity** | **73.9%** (136/184) | **74.5%** (137/184) | Parity with standard score |
+| **  95% Wilson Confidence Interval** | **[67.1%, 79.7%]** | **[67.7%, 80.2%]** | Overlapping intervals (parity) |
+| **Median Lead Time** | **32.0 hours** | **32.0 hours** | Early detection before sepsis onset |
+| **  95% Bootstrap CI (2,000 resamples)** | **[25.5h, 46.0h]** | **[26.0h, 43.0h]** | Identical median lead time |
+| **Alert Rate (20-bed ward)** | 1.04 alerts / nurse-hr | **1.03 alerts / nurse-hr** | Marginal alert reduction (-1.0%) |
+| **Measurement Tasks** | *None (untracked)* | **2.84 tasks / nurse-hr** | Actionable repeat-vitals prompts |
+| **False Alert Proportion** | **80.8%** | **81.7%** | Post-event & non-event alert share |
+| **Patient-Level False Alarm Rate** | **62.0%** (1,126 / 1,815) | **64.6%** (1,173 / 1,815) | Share of non-event patients with $\ge 1$ alert |
 
-### 5.2 Calibrated Synthetic Ward Cohort Benchmark (50 Patients, ~4h Cadence)
+---
 
-The table below reflects the benchmark executed across the 50-patient calibrated fallback cohort:
+### 5.2 What This Does and Does Not Show (Honest Clinical Disclosures)
+
+To maintain absolute scientific and clinical integrity, we explicitly declare what this benchmark demonstrates and what its inherent limitations are:
+
+1. **ICU Data, Not Ward Data:**
+   The PhysioNet 2019 records originate from Intensive Care Units, where patients have higher baseline acuity, frequent vasopressor/ventilator titration, and continuous bedside instrumentation. While downsampling to 4–6h intervals models ward round timing, the underlying pathology remains critical care physiology rather than post-operative recovery on a general medical/surgical ward.
+2. **Sepsis Only:**
+   The ground truth in this dataset reflects clinical sepsis onset (suspected infection plus $\ge 2$ SOFA point increase). It does not evaluate detection of internal hemorrhages, stroke, respiratory depression from opioids, or cardiac arrests.
+3. **No Condition Tags (Profiles are Inert Here):**
+   The public challenge dataset contains de-identified physiological time series but **no chronic condition ICD tags** (e.g. COPD, post-operative status, or cardiac history). Consequently, condition profiles are completely inactive during this evaluation (defaulting to the general adult prior). Condition-based baseline adjustments (such as Story 1 and Story 4) are evaluated exclusively on the simulator.
+4. **Lead Time is Inflated by Abnormal Admission Vitals:**
+   Many septic ICU patients enter the hospital already exhibiting severe physiological abnormalities (e.g., admission heart rate $> 120$ bpm or respiratory rate $> 24$). Because their very first reading breaches alert thresholds, the median lead time measures the time from admission to formal diagnosis ($t_{\text{sepsis}}$), generating ~32 hours of lead time for both systems rather than reflecting gradual subtle multi-hour drift.
+5. **Few Events Means Wide Confidence Intervals:**
+   Across 1,999 patients, 184 developed sepsis (9.20%). With 184 events, 95% Wilson confidence intervals span approximately 12.5% in width. The sensitivity difference between WardPulse (74.5%) and NEWS2 (73.9%) represents 1 patient (137 vs 136 events) and is well within the statistical margin of error.
+6. **Honest Metric Reporting:**
+   WardPulse matches NEWS2 sensitivity (74.5% vs 73.9%) and median lead time (32.0h) while slightly reducing alert workload (1.03 vs 1.04 alerts/nurse-hr) and proactively generating 2.84 measurement tasks/hr. On false alert metrics, WardPulse has a slightly higher false alert proportion (81.7% vs 80.8%) and patient-level false alarm rate (64.6% vs 62.0%) because its freshness decay rules proactively prompt for confirmation when borderline vitals become stale. **We do not tune any thresholds or config values to artificially claim superiority.**
+
+---
+
+### 5.3 Calibrated Synthetic Ward Cohort Benchmark (50 Patients, ~4h Cadence)
+
+For comparison and proof-of-concept testing in environments lacking raw dataset files, the table below reflects the benchmark executed across the 50-patient calibrated synthetic fallback cohort:
 
 | Performance Metric | Naive AI (Standard NEWS2) | WardPulse (Attention Allocator) | Relative Advantage |
 | :--- | :---: | :---: | :---: |
 | **Cohort Size** | 50 patients | 50 patients | Controlled clinical priors |
-| **Total Deterioration Events** | 16 | 16 | — |
-| **Events Detected** | 14 | 14 | Parity |
+| **Total Deterioration Events** | 16 | 16 | Simulated ward collapses |
+| **Events Detected** | 14 | 14 | Parity (Zero safety loss) |
 | **Clinical Sensitivity** | **87.5%** | **87.5%** | Preserved full safety floor |
-| **Median Lead Time** | **2.0 hours** | **2.0 hours** | Meaningful clinical intervention window |
+| **Median Lead Time** | **2.0 hours** | **2.0 hours** | Actionable intervention window |
 | **High-Priority Alert Rate** | 1.17 alerts / nurse-hr | **1.15 alerts / nurse-hr** | Calmer ward environment |
-| **Measurement Tasks** | *None (untracked)* | **0.15 tasks / nurse-hr** | Actionable early trajectory verification |
+| **Measurement Tasks** | *None (untracked)* | **0.15 tasks / nurse-hr** | Actionable trajectory verification |
 | **False Alert Proportion** | 86.2% | **86.0%** | Reduced chronic nuisance alarms |
 
-### Key Clinical Takeaways:
-1. **Safety Parity Guaranteed:** On both real-world sepsis records (64.3%) and synthetic ward deterioration cases (87.5%), WardPulse catches every single event that standard NEWS2 catches with identical or superior lead times.
-2. **Context-Aware Triage & Proactive Measurement:** Rather than remaining passive between 4–6 hour observation gaps, WardPulse generates 3.13 proactive measurement tasks per nurse-hour on real patient records to verify borderline vital signs before collapse.
-3. **Structured Attention:** WardPulse strictly caps on-screen active tasks at $K=2$, protecting nurses from alert overload while ranking the entire ward queue transparently.
+---
+
+### 5.4 Machine Learning Evaluation (Synthetic Cohort, Not Evidence of Accuracy; ENABLE_ML = False)
+
+> **Important Disclosure:** The LightGBM model, AUROC/AUPRC scores of 1.000, and TreeSHAP feature importances were trained and evaluated **exclusively on the 50-patient synthetic cohort**. They are **not evidence of real-world clinical accuracy**. In production and evaluation benchmarks, the ML risk blending hook is **disabled by default** (`ENABLE_ML = False` in `engine/risk.py`).
+
+An optional gradient-boosted decision tree model ([LightGBM 4.7.0](file:///e:/HC_01_AI-PIRATES/backend/ml/saved_model/model.txt), 51 KB) was explored to evaluate whether tabular tree models could enhance rule-based risk scoring:
+- **Synthetic Cohort Metrics:** AUROC = 1.000, AUPRC = 1.000 (trained on synthetic cohort with simple patterns; not validated on real clinical outcomes).
+- **Rule Engine Superiority:** On realistic 4–6h downsampled ward intervals, personalized baseline z-scores, trend slopes, and shock index already achieve the optimal safety-to-alert frontier. Adding an opaque tree model adds computational opacity without measurable clinical lead time improvement.
+- **Explainability Default:** In accordance with clinical safety principles, WardPulse operates 100% on explainable, deterministic rules by default.
 
 ---
 
-### 5.2 Optional Machine Learning Evaluation: Rules-Only vs. Rules + LightGBM (P8)
+## 6. Citation & Dataset Acknowledgement
 
-An optional gradient-boosted decision tree model ([LightGBM 4.7.0](file:///e:/HC_01_AI-PIRATES/backend/ml/saved_model/model.txt), 51 KB) was trained to predict clinical deterioration within a 6.0-hour horizon using patient-split cross-validation (zero data leakage):
-- **Held-Out Test Performance:** AUROC = 1.000, AUPRC = 1.000.
-- **Ensemble Architecture:** `calculate_risk()` blends transparent rules (70%) with ML deterioration probability (30%), with strict hard red-line override preserving the clinical safety floor.
+The public evaluation records are provided by the PhysioNet Computing in Cardiology Challenge 2019:
+> **Citation:**
+> Reyna, M. A., Josef, C., Jeter, R., Shashikumar, S. P., Westover, M. B., Nemati, S., Clifford, G. D., & Sharma, A. (2019). Early Detection of Sepsis from Clinical Data: The PhysioNet/Computing in Cardiology Challenge 2019. *Critical Care Medicine*, 48(2), e74–e81. https://doi.org/10.13026/v64v-d857.
+> Distributed under Creative Commons Attribution 4.0 International (CC BY 4.0).
 
-#### Comparative Benchmark on 50-Patient Ward Cohort:
-
-| Performance Metric | WardPulse (Rules Only) | WardPulse + LightGBM (30% Blend) |
-| :--- | :---: | :---: |
-| **Events Detected** | 14 / 16 | 14 / 16 |
-| **Clinical Sensitivity** | 87.5% | 87.5% |
-| **Median Lead Time** | 2.0 hours | 2.0 hours |
-| **Alert Rate (20 beds)** | 1.15 alerts / nurse-hr | 1.15 alerts / nurse-hr |
-| **Measurement Tasks** | 0.15 tasks / nurse-hr | 0.15 tasks / nurse-hr |
-| **False Alert Ratio** | 86.0% | 86.0% |
-
-#### Honest Assessment & Default Configuration:
-On realistic 4–6h downsampled general ward intervals, the combination of personal baselines, vital trend slopes, and shock index already achieves the optimal safety-to-alert frontier. Blending LightGBM confirms the rule outputs but offers no measurable reduction in nurse workload or improvement in lead time.
-
-In accordance with ethical AI in healthcare and regulatory transparency:
-- The ML blending hook is **disabled by default** (`ENABLE_ML = False` in `engine/risk.py`).
-- WardPulse remains 100% deterministic and fully explainable at the bedside by default, with ML available as an optional toggle.
-
----
-
-## 6. Honest Limitations & Ethical Disclosures
-
-1. **ICU vs. General Ward Domain Shift:**
-   Public benchmark data (PhysioNet CinC 2019) stems from Intensive Care Units, where patients are more acute, monitored continuously, and receive active vasopressor/ventilatory titration. Downsampling to 4–6h intervals approximates general ward cadence, but clinical validation requires prospectively collected general ward registries.
-2. **Synthetic Cohort Utilization:**
-   The automated fallback benchmark operates on 50 synthetically generated patient trajectories designed with clinical physiology rules. While trajectory shapes reflect realistic disease progressions, it is a proof of concept.
-3. **Decision Support, Not Autonomous Diagnosis:**
-   WardPulse is an assistive decision-support tool designed for nurses on understaffed wards. It does **not** provide drug dosing, formulate differential diagnoses, or replace bedside clinical judgment.
-4. **No Clinical Clearance:**
-   WardPulse is a hackathon innovation prototype. It has not undergone clinical trials, FDA 510(k) review, or CE mark certification for medical devices.

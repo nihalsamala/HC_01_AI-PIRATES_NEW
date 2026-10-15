@@ -113,3 +113,22 @@ Consequently:
 - Condition-specific behavior, personal baseline discrimination (Story 1), and typed-in targeted deterioration (Story 4) are **demonstrated and evaluated on the simulator only**.
 - Benchmark headline numbers on the public dataset remain 100% stable and unperturbed by condition-specific profile additions.
 
+---
+
+## 8. Clinical Event Definition & Lead-Time Convention
+
+In the PhysioNet Computing in Cardiology Challenge 2019 dataset, the binary target `SepsisLabel` is shifted 6 hours early: `SepsisLabel` turns to 1 exactly 6 hours before clinical sepsis onset ($t_{\text{sepsis}}$) per Sepsis-3 criteria (suspected infection plus 2-point acute change in SOFA score).
+
+### Clinical Event Time Definition:
+$$t_{\text{event}} = t_{\text{first\_label\_1}} + 6\text{ hours}$$
+The clinical deterioration event occurs at the timestamp of the first observation where `SepsisLabel == 1` PLUS 6 hours.
+
+### Lead-Time Definition:
+A deterioration event is counted as detected if and only if the system raises a high-priority alert (WardPulse: `PAGE_DOCTOR` or emergency crash bypass card; NEWS2: high-risk aggregate alert $\ge 5$) strictly at or before $t_{\text{event}}$ ($t_{\text{alert}} \le t_{\text{event}}$).
+$$\text{lead\_time} = t_{\text{event}} - t_{\text{first\_alert}}$$
+Any alert generated strictly after $t_{\text{event}}$ ($t_{\text{alert}} > t_{\text{event}}$) does not count toward early detection and is classified as a post-event false alert.
+
+### Zero Lookahead Principle:
+During evaluation replay, the inference engine is strictly causal: at simulated time $t$, it is provided only physiological readings recorded at or before $t$. No future vitals or downstream labels are accessible to the model, rule engine, or personal baseline calculators.
+
+
