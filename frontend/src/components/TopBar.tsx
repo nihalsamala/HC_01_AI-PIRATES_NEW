@@ -19,6 +19,7 @@ interface TopBarProps {
   onBudgetKChange: (k: number) => void;
   isProjectorMode?: boolean;
   onToggleProjectorMode?: () => void;
+  dataSourceLabel?: string;
 }
 
 export const TopBar: React.FC<TopBarProps> = ({
@@ -30,6 +31,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   onBudgetKChange,
   isProjectorMode = false,
   onToggleProjectorMode,
+  dataSourceLabel,
 }) => {
   const [selectedLang, setSelectedLang] = useState<'EN' | 'हिं' | 'తె'>('EN');
   const [speedDropdownOpen, setSpeedDropdownOpen] = useState(false);
@@ -88,7 +90,7 @@ export const TopBar: React.FC<TopBarProps> = ({
             Ward 3B · General Medicine &amp; Surgery
           </span>
           <span className="text-[11px] text-slate-500 leading-tight">
-            Data: replayed de-identified public records
+            {dataSourceLabel || 'Beds: simulated ward'}
           </span>
         </div>
       </div>

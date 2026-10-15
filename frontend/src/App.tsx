@@ -277,6 +277,16 @@ export const App: React.FC = () => {
       : [];
   const combinedQueue = [...overflowCards, ...(tasksResponse?.queue || [])];
 
+  // Dynamically compute bed data provenance from real data / evalResults
+  const isReplay = Boolean(
+    (evalResults && evalResults.dataset.toLowerCase().includes('physionet')) ||
+    (patientDetail && patientDetail.recent_vitals.some((r) => r.source === 'replay')) ||
+    Object.values(patientDetailsMap).some((d) => d.recent_vitals.some((r) => r.source === 'replay'))
+  );
+  const dataSourceLabel = isReplay
+    ? 'Beds: replayed public ICU records (PhysioNet 2019) · scripted demo beds: 3, 4, 5, 6, 7, 12'
+    : 'Beds: simulated ward';
+
   return (
     <div
       className={`min-h-screen bg-slate-100 flex flex-col font-sans transition-all ${
@@ -293,6 +303,7 @@ export const App: React.FC = () => {
         onBudgetKChange={(k) => setBudgetK(k)}
         isProjectorMode={projectorMode}
         onToggleProjectorMode={() => setProjectorMode(!projectorMode)}
+        dataSourceLabel={dataSourceLabel}
       />
 
       {/* Main Body: Left Rail + Center + Right Sidebar */}

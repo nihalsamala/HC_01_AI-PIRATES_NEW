@@ -60,17 +60,17 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
 
   // Dynamic values for Live Proof panel
   // Compute alerts/hour from evalResults if available, else derive from current live counts
-  let naiveAlertsPerHour = 2.8;
-  let wardpulseAlertsPerHour = 0.3;
+  let naiveAlertsPerHour = 1.0;
+  let wardpulseAlertsPerHour = 1.0;
 
   if (evalResults && evalResults.systems) {
     const wpSys = evalResults.systems.find((s) => s.system === 'wardpulse');
     const newsSys = evalResults.systems.find((s) => s.system === 'news2');
     if (wpSys && wpSys.alerts_per_nurse_hour !== null && wpSys.alerts_per_nurse_hour !== undefined) {
-      wardpulseAlertsPerHour = Number(wpSys.alerts_per_nurse_hour.toFixed(1));
+      wardpulseAlertsPerHour = Number(wpSys.alerts_per_nurse_hour.toFixed(2));
     }
     if (newsSys && newsSys.alerts_per_nurse_hour !== null && newsSys.alerts_per_nurse_hour !== undefined) {
-      naiveAlertsPerHour = Number(newsSys.alerts_per_nurse_hour.toFixed(1));
+      naiveAlertsPerHour = Number(newsSys.alerts_per_nurse_hour.toFixed(2));
     }
   }
 
@@ -219,10 +219,12 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
           </table>
         </div>
 
-        {/* Label per Rule 2: (simulated ward) */}
+        {/* Dataset provenance label */}
         <div className="mt-2 text-right">
           <span className="text-[10px] text-slate-600 italic">
-            (simulated ward)
+            {evalResults?.dataset.toLowerCase().includes('physionet')
+              ? '(PhysioNet 2019, n=1,999)'
+              : '(simulated ward)'}
           </span>
         </div>
       </div>
