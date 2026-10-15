@@ -299,6 +299,20 @@ async def post_sim_control(control: SimControl) -> SimState:
 
 
 # ---------------------------------------------------------------------------
+# POST /sim/seek
+# ---------------------------------------------------------------------------
+
+@router.post("/sim/seek")
+async def post_sim_seek(target_time: str = Query(..., description="Target ISO datetime")) -> SimState:
+    """Seek simulation directly to an ISO datetime (e.g. 2026-10-20T07:00:00)."""
+    try:
+        dt = datetime.fromisoformat(target_time)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid target_time ISO string")
+    return await sim_clock.seek(dt)
+
+
+# ---------------------------------------------------------------------------
 # GET /stream (SSE)
 # ---------------------------------------------------------------------------
 

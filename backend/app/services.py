@@ -221,10 +221,19 @@ def persist_evaluation(db: Session, evaluation: WardEvaluation, sim_time: dateti
     ).all()
     existing_by_key = {(r.patient_id, r.type): r for r in existing_rows}
 
+    # Also check recently done tasks to prevent immediate re-creation loop upon nurse completion
+    recently_done = db.query(TaskRow).filter(
+        TaskRow.status == "done",
+        TaskRow.resolved_at >= sim_time - timedelta(minutes=30),
+    ).all()
+    done_keys = {(r.patient_id, r.type) for r in recently_done}
+
     seen_keys = set()
 
     for task in all_new_tasks:
         key = (task.patient_id, task.type.value)
+        if key in done_keys:
+            continue
         seen_keys.add(key)
 
         if key in existing_by_key:
@@ -361,10 +370,51 @@ class SimClock:
         self.speed_minutes_per_second = speed
         return self.get_state()
 
+    async def seek(self, target_time: datetime) -> SimState:
+        """Seek simulation clock directly to target_time, inserting intermediate readings."""
+        await self.pause()
+
+        # If seeking backwards or to start, reset first
+        if target_time <= self.start_time:
+            return await self.reset()
+
+        if target_time < self.sim_time:
+            await self.reset()
+
+        sim = self._get_simulator()
+        new_readings = sim.advance(target_time)
+        self.sim_time = target_time
+
+        if new_readings:
+            db = SessionLocal()
+            try:
+                for vi in new_readings:
+                    ts = vi.timestamp if vi.timestamp else self.sim_time
+                    db.add(VitalsRow(
+                        patient_id=vi.patient_id,
+                        timestamp=ts,
+                        hr=vi.hr,
+                        sbp=vi.sbp,
+                        dbp=vi.dbp,
+                        rr=vi.rr,
+                        spo2=vi.spo2,
+                        temp=vi.temp,
+                        on_oxygen=vi.on_oxygen,
+                        consciousness=vi.consciousness.value if vi.consciousness else "A",
+                        source=vi.source.value if vi.source else "sim",
+                    ))
+                db.commit()
+            finally:
+                db.close()
+
+        await run_evaluation_and_emit(self.sim_time)
+        return self.get_state()
+
     async def _tick_loop(self) -> None:
         """Background loop: advances sim_time and processes readings each tick."""
         sim = self._get_simulator()
         tick_interval = 0.5  # real seconds between ticks
+        max_time = self.start_time + timedelta(hours=12)
 
         while self.running:
             try:
@@ -375,6 +425,11 @@ class SimClock:
                 # Advance sim time
                 delta_minutes = self.speed_minutes_per_second * tick_interval
                 self.sim_time += timedelta(minutes=delta_minutes)
+
+                # Cap simulation to shift window (12 hours) so vitals stay fresh
+                if self.sim_time >= max_time:
+                    self.sim_time = max_time
+                    self.running = False
 
                 # Get new readings from simulator
                 new_readings = sim.advance(self.sim_time)
@@ -409,8 +464,8 @@ class SimClock:
                     finally:
                         db.close()
 
-                    # Re-evaluate
-                    await run_evaluation_and_emit(self.sim_time)
+                # Re-evaluate so task aging, waiting time, and cards update dynamically
+                await run_evaluation_and_emit(self.sim_time)
 
                 # Emit sim tick
                 await event_bus.publish(StreamEvent(
@@ -418,6 +473,9 @@ class SimClock:
                     timestamp=self.sim_time,
                     data=self.get_state().model_dump(mode="json"),
                 ))
+
+                if not self.running:
+                    break
 
             except asyncio.CancelledError:
                 break
